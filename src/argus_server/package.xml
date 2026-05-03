@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>argus_server</name>
+  <version>0.0.1</version>
+  <description>
+    ROS 2 package integrating OpenSim with a C++20 executable.
+  </description>
+
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- ========================= -->
+  <!-- Build system dependencies -->
+  <!-- ========================= -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- ========================= -->
+  <!-- Build dependencies -->
+  <!-- ========================= -->
+  <build_depend>rclcpp</build_depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <!-- If OpenSim is installed as a system/ROS-independent library,
+       it does NOT go here unless you wrap it as a ROS package.
+       It is typically handled via CMake only. -->
+
+  <!-- ========================= -->
+  <!-- Execution dependencies -->
+  <!-- ========================= -->
+  <exec_depend>rclcpp</exec_depend>
+
+  <!-- ========================= -->
+  <!-- Export -->
+  <!-- ========================= -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>
