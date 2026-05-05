@@ -13,11 +13,15 @@ def generate_launch_description():
 
     model_folder_path = '/home/argus/Argus/models/bimanual_upper_arm'
     topic_list = [
-        'thorax',
-        'humerus_l'
+        '/thorax/odomimu',
+        '/humerus_r/odomimu',
     ]
 
     joint_outputs = [
+        "r_x",
+        "r_y",
+        "r_z",
+
         "elv_angle_r",
         "shoulder_elv_r",
         "shoulder_rot_r",
@@ -38,7 +42,7 @@ def generate_launch_description():
     # This dictionary maps body names to their calibration euler angles [x, y, z].
     body_calibrations = {
         'thorax': [0.0, 0.0, 0.0],
-        'humerus_l': [0.0, 0.0, 0.0],
+        'humerus_r': [0.0, 0.0, 0.0],
     }
 
     # The body_calibrations dictionary needs to be converted to a list of strings

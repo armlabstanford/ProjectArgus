@@ -210,4 +210,5 @@ __marimo__/
 install/*
 build/*
 log/*
+bags/*
 

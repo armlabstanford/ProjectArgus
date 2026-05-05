@@ -55,8 +55,8 @@ ros2 launch argus_server human_model.launch.py
 
 for testing:
 ```
-ros2 topic pub --once /argus/torso nav_msgs/msg/Odometry "{pose: {pose: {position: {x: 0.5, y: 0.2, z: 0.1}, orientation: {w: 1.0}}}}"
-ros2 topic pub --once /argus/humerus_l nav_msgs/msg/Odometry "{pose: {pose: {position: {x: 0.5, y: 0.2, z: 0.1}, orientation: {w: 1.0}}}}"
+ros2 topic pub --once /thorax/odomimu nav_msgs/msg/Odometry "{pose: {pose: {position: {x: 0.5, y: 0.2, z: 0.1}, orientation: {w: 1.0}}}}"
+ros2 topic pub --once /humerus_l/odomimu nav_msgs/msg/Odometry "{pose: {pose: {position: {x: 0.5, y: 0.2, z: 0.1}, orientation: {w: 1.0}}}}"
 ros2 topic pub --once /reset_tracking std_msgs/msg/Bool "{data: true}"
 ```
 
@@ -69,3 +69,11 @@ Currently this repo supports a bimanual upper arm model which is saved in the re
 
 To expand this to other body segments (like the legs) please feel free to add to the models folder and make a PR. Sensor topic names should correspond to the bone to which they are attached in opensim, check your model file to determine this.
 
+
+## Bag Synchronization
+This is a tool used to merge multiple bags and order the resultant bag based on the input header.stamps. Intended to help combine data collected by multiple sensors synchronized to a world clock.
+
+For python setup:
+```
+python3-venv 
+```

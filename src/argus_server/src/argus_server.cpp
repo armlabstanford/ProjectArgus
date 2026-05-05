@@ -277,13 +277,15 @@ private:
    * @param msg The received odometry message.
    * @param segment_name The name of the body segment associated with the message.
    */
-  void odom_cb(const nav_msgs::msg::Odometry::SharedPtr msg, const std::string& segment_name)
+  void odom_cb(const nav_msgs::msg::Odometry::SharedPtr msg, const std::string& topic_name)
   {
     // recieves odom messages from a specific topic, and stores them in the class.
     auto q = msg->pose.pose.orientation;
 
+    std::string segment_name = extract_segment_name(topic_name);
     std::lock_guard<std::mutex> lock(odom_mutex);
     cur_odom_data[segment_name] = q;
+
   }
 
   /**
@@ -393,6 +395,10 @@ private:
     geometry_msgs::msg::Quaternion cur_quat;
     geometry_msgs::msg::Quaternion ref_quat;
 
+    // RCLCPP_INFO(this->get_logger(), "Adding orientation data for IK at time %.3f", timestamp);
+    // RCLCPP_INFO(this->get_logger(), "Current odometry data for humerus_l: w=%.3f, x=%.3f, y=%.3f, z=%.3f",
+    //   cur_odom_data["humerus_l"].w, cur_odom_data["humerus_l"].x, cur_odom_data["humerus_l"].y, cur_odom_data["humerus_l"].z);
+
     std::lock_guard<std::mutex> lock(odom_mutex);
     if (!is_zeroed) {
         RCLCPP_WARN(this->get_logger(), "Tracking not zeroed, can't add orientation data for IK.");
@@ -403,6 +409,7 @@ private:
       std::string segment_name = segment_ref[i];
       
       if(cur_odom_data.find(segment_name) == cur_odom_data.end() || ref_odom_data.find(segment_name) == ref_odom_data.end()) {
+        RCLCPP_WARN(this->get_logger(), "Missing odometry data for segment '%s', skipping IK update.", segment_name.c_str());
         return;
       }
 
@@ -460,21 +467,33 @@ private:
 
   /**
    * @brief Extracts the segment name from a topic name.
-   * 
-   * This is a helper function that extracts the last part of a topic name,
-   * which is assumed to be the name of the body segment.
-   * 
-   * @param topic_name The topic name.
-   * @return The extracted segment name.
+   *
+   * Assumes topic format: /<segment>/<something>
+   * Returns the first path element after the leading '/'.
+   *
+   * Example:
+   *   /humerus/odomimu -> humerus
    */
   std::string extract_segment_name(const std::string& topic_name)
   {
-    size_t pos = topic_name.find_last_of('/');
-    if (pos == std::string::npos)
-        return topic_name;  // no '/' found
+      // Find first non-leading slash
+      size_t start = topic_name.find_first_not_of('/');
 
-    return topic_name.substr(pos + 1);
+      if (start == std::string::npos)
+          return "";  // empty or invalid string
 
+      // Find next slash after segment start
+      size_t end = topic_name.find('/', start);
+
+      if (end == std::string::npos)
+      {
+          // Only one token after slash
+          return topic_name.substr(start);
+      }
+
+     // RCLCPP_INFO(this->get_logger(), "Extracted segment name '%s' from topic '%s'", topic_name.substr(start, end - start).c_str(), topic_name.c_str());
+
+      return topic_name.substr(start, end - start);
   }
 
   /**

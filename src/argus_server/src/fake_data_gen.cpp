@@ -8,8 +8,8 @@ public:
   FakeOdomNode()
   : Node("fake_odom_node"), t_(0.0)
   {
-    thorax_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("/thorax", 10);
-    humerus_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("/humerus_l", 10);
+    thorax_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("/thorax/odomimu", 10);
+    humerus_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("/humerus_l/odomimu", 10);
 
     timer_ = this->create_wall_timer(
       std::chrono::milliseconds(20),  // 50 Hz
