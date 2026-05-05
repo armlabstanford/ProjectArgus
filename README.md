@@ -1,4 +1,4 @@
-# Argus
+# Project Argus
 This repo uses ros2 humble to combine data from multiple odometry sensors affixed to human body segments, and publishes the estimated biological joint angles with respect to human skeletal constraints.
 
 This work relies on real-time modifications to opensim made for OpenSenseRT/RealTimeKin: https://github.com/pslade2/RealTimeKin .
