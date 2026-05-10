@@ -3,7 +3,17 @@ This repo uses ros2 humble to combine data from multiple odometry sensors affixe
 
 This work relies on real-time modifications to opensim made for OpenSenseRT/RealTimeKin: https://github.com/pslade2/RealTimeKin .
 
-## Setup Instructions
+## Offline IK Setup Instructions
+For offline IK, we don't need ros or realtime opensim functionality, so we can use the opensim pip packages. The following is tested on Ubuntu 22.04.
+
+```
+conda create -n opensim_env python=3.10
+conda activate opensim_env
+pip install matplotlib numpy scipy pandas
+conda install -c opensim-org opensim
+```
+
+## OpenSim-ROS2 Setup Instructions
 I experienced issues when building opensim with an active ros environment due to fmt versions. I would advise uninstalling ros2 temporarily, then performing the following steps to build opensim from source:
 
 1) uninstall ros2-humble-desktop and specifically libfmt-dev and libspdlog-dev or any variants
