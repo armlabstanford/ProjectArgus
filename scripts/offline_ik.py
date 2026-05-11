@@ -14,6 +14,12 @@ from scipy.spatial.transform import Rotation as R
 # TODO: need to test everything with actual data!
 # TODO: need to add visualization of IK results (doesn't work on ROG)
 
+
+
+# quat conventions:
+# scipy is x y z w
+# opensim is w x y z
+
 def generate_sinusoid_data(num_samples:int, frequency:float, amplitude:float, central_point:float):
     """
     Generate a sinusoidal orientation trajectory for testing purposes. 
@@ -26,23 +32,24 @@ def generate_sinusoid_data(num_samples:int, frequency:float, amplitude:float, ce
         quat_2 = R.from_euler('xyz', [0, 0, central_point-angle]).as_quat()  # Convert to quaternion
         quat_3 = R.from_euler('xyz', [0, 0, 0]).as_quat()  # Convert to quaternion
         orientations.append((quat_1, quat_2, quat_3))
+        print(quat_1)
 
     orientation_df = pd.DataFrame({
         'timestamp': timestamps,
-        'left_thigh_q_x': [quat_row[0][1] for quat_row in orientations],
-        'left_thigh_q_y': [quat_row[0][2] for quat_row in orientations],
-        'left_thigh_q_z': [quat_row[0][3] for quat_row in orientations],
-        'left_thigh_q_w': [quat_row[0][0] for quat_row in orientations],
+        'left_thigh_q_x': [quat_row[0][0] for quat_row in orientations],
+        'left_thigh_q_y': [quat_row[0][1] for quat_row in orientations],
+        'left_thigh_q_z': [quat_row[0][2] for quat_row in orientations],
+        'left_thigh_q_w': [quat_row[0][3] for quat_row in orientations],
 
-        'right_thigh_q_x': [quat_row[1][1] for quat_row in orientations],
-        'right_thigh_q_y': [quat_row[1][2] for quat_row in orientations],
-        'right_thigh_q_z': [quat_row[1][3] for quat_row in orientations],
-        'right_thigh_q_w': [quat_row[1][0] for quat_row in orientations],
+        'right_thigh_q_x': [quat_row[1][0] for quat_row in orientations],
+        'right_thigh_q_y': [quat_row[1][1] for quat_row in orientations],
+        'right_thigh_q_z': [quat_row[1][2] for quat_row in orientations],
+        'right_thigh_q_w': [quat_row[1][3] for quat_row in orientations],
 
-        'torso_q_x': [quat_row[2][1] for quat_row in orientations],
-        'torso_q_y': [quat_row[2][2] for quat_row in orientations],
-        'torso_q_z': [quat_row[2][3] for quat_row in orientations],
-        'torso_q_w': [quat_row[2][0] for quat_row in orientations],
+        'torso_q_x': [quat_row[2][0] for quat_row in orientations],
+        'torso_q_y': [quat_row[2][1] for quat_row in orientations],
+        'torso_q_z': [quat_row[2][2] for quat_row in orientations],
+        'torso_q_w': [quat_row[2][3] for quat_row in orientations],
     })
 
     return orientation_df
@@ -137,10 +144,11 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
         R_GB = osim_rot_to_numpy(R_GB)
 
         odom_ref = np.array([orientation_df[body_name + ext].iloc[zero_pose_idx] for ext in ext_list])
-        odom_ref = R.from_quat(odom_ref).as_matrix()
+        odom_ref = R.from_quat(odom_ref, scalar_first=True).as_matrix()
         sensor_offset = sensor_bone_offsets[body_name]
         
         ref_pose[body_name] = R_GB @ sensor_offset @ odom_ref.T
+        #print(body_name, ref_pose[body_name])
 
     # extract the sensor orientation at the zero pose timestamp, and compute the transforms we 
     # will apply to the rest of the orientation data.
@@ -154,15 +162,16 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
         rvq = osim.RowVectorQuaternion(num_bodies)
         for j, body_name in enumerate(body_names):
             cur_quat = np.array([row[body_name + ext] for ext in ext_list])
+            #print(body_name, cur_quat)
     
-            R_rel = ref_pose[body_name] @ R.from_quat(cur_quat).as_matrix()  
-            quat_rel = R.from_matrix(R_rel).as_quat()  # Convert back to quaternion
+            R_rel = ref_pose[body_name] @ R.from_quat(cur_quat, scalar_first=True).as_matrix()  
+            quat_rel = R.from_matrix(R_rel).as_quat(scalar_first=True)  # Convert back to quaternion
 
             updater = rvq.updElt(0, j)
             [updater.set(k, quat_rel[k]) for k in range(4)]
             
         quatTable.appendRow(row["timestamp"], rvq)
-
+        
     # convert quat time series table to rotation matrix time series table
     rotTable = osim.OpenSenseUtilities.convertQuaternionsToRotations(quatTable)
     return osim.OrientationsReference(rotTable)
@@ -176,6 +185,41 @@ def osim_rot_to_numpy(osim_R:osim.Rotation):
     ])
 
     return R_np
+
+def plot_IK_results(ik_results:pd.DataFrame, desired_joints:list, size:tuple=None):
+    import matplotlib.pyplot as plt
+    import math
+
+    num_joints = len(desired_joints)
+    if num_joints == 0:
+        print("No joints to plot.")
+        return
+
+    if size:
+        rows, cols = size
+        if rows * cols < num_joints:
+            raise ValueError(f"Subplot grid size {size} is too small for {num_joints} joints.")
+    else:
+        rows = num_joints
+        cols = 1
+
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 6, rows * 4), squeeze=False)
+    axes = axes.flatten()
+
+    for i, joint in enumerate(desired_joints):
+        ax = axes[i]
+        ax.plot(ik_results["timestamp"], ik_results[joint] / np.pi * 180)
+        ax.set_title(f"IK Result for {joint}")
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Joint Angle (deg)")
+        ax.grid(True)
+
+    # Hide unused subplots
+    for i in range(num_joints, len(axes)):
+        axes[i].set_visible(False)
+
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == "__main__":
     # sensor offest angles should be in the frame of the parent bone. Generally opensim has +z pointing to the right (from a first person perspective)
@@ -198,7 +242,7 @@ if __name__ == "__main__":
                           "torso": "pelvis"}
     
     desired_joints = ["hip_flexion_r", "hip_flexion_l"]  # specify which joints we want to save from the IK results
-    zero_pose_timestamp = 0.5  # specify the timestamp in the orientation data that corresponds to the zero pose of the model
+    zero_pose_timestamp = 0.0  # specify the timestamp in the orientation data that corresponds to the zero pose of the model
     
     sensor_bone_offsets = {
         "left_thigh": R.from_euler('xyz', [0, 0, 0]).as_matrix(),  # No offset for left thigh
@@ -216,6 +260,9 @@ if __name__ == "__main__":
     ik_results = solve_ik(model, ik_solver, state, orientation_df["timestamp"], desired_joints)
 
     print(ik_results)
+
+    # Plot the IK results
+    plot_IK_results(ik_results, desired_joints, size=(1, 2))
 
     # wow it solves very fast, maybe track() is quicker with higher rate data? Oh and accuracy was
     # set to values from Patrick's script. Maybe we have too high of an accuracy requirement on 

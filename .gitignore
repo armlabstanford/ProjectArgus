@@ -211,4 +211,5 @@ install/*
 build/*
 log/*
 bags/*
+data/*
 
