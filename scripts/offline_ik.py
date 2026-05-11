@@ -1,4 +1,3 @@
-
 # This script uses the opensim python implementation to perform offline orientation IK.
 # supply a .csv of orientation data and requested joint angles, and this saves a csv
 # of the resulting joint angles after IK.
@@ -9,6 +8,8 @@ import opensim as osim
 import pandas as pd
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
 
 
 # TODO: need to test everything with actual data!
@@ -99,7 +100,6 @@ def solve_ik(model:osim.Model, ik_solver:osim.InverseKinematicsSolver, state:osi
             joint_name = coord.getName()
             if joint_name not in desired_joints:
                 continue
-            print(coord.getName(), coord.getValue(state))
             ik_results.loc[i, joint_name] = coord.getValue(state)
         
     return ik_results
@@ -148,7 +148,7 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
         sensor_offset = sensor_bone_offsets[body_name]
         
         ref_pose[body_name] = R_GB @ sensor_offset @ odom_ref.T
-        #print(body_name, ref_pose[body_name])
+        print(body_name, "\n",ref_pose[body_name])
 
     # extract the sensor orientation at the zero pose timestamp, and compute the transforms we 
     # will apply to the rest of the orientation data.
@@ -166,6 +166,8 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
     
             R_rel = ref_pose[body_name] @ R.from_quat(cur_quat, scalar_first=True).as_matrix()  
             quat_rel = R.from_matrix(R_rel).as_quat(scalar_first=True)  # Convert back to quaternion
+            if i == 0:
+                print(body_name, "relative rotmat at zero pose timestamp:\n", R_rel)
 
             updater = rvq.updElt(0, j)
             [updater.set(k, quat_rel[k]) for k in range(4)]
@@ -221,33 +223,187 @@ def plot_IK_results(ik_results:pd.DataFrame, desired_joints:list, size:tuple=Non
     plt.tight_layout()
     plt.show()
 
+
+def vive_dataloader(npz_path:str, des_ik_rate:float=100):
+    """
+    Loads our vive data into a pandas df for later processing.
+    des_ik_rate denotes the frequency we should try to sample IK at.
+    This is used to generate timestamps, where all values in the output df
+    are the measurement at that sensor which occured most recently at the ik
+    timestep.
+    """
+    ext_list = ["_q_w", "_q_x", "_q_y", "_q_z"]
+    data = np.load(npz_path)
+    keys = data.keys()
+    for key in keys:
+        print(key)
+
+    body_names = [key.split("_quaternions")[0] for key in keys if "_quaternions" in key]
+
+    print(body_names)
+
+
+    first_timestamps = [data[body_name + "_unix_time_ns"][0] for body_name in body_names]
+    start_time = max(first_timestamps)*1e-9  # convert to seconds
+
+    last_timestamps = [data[body_name + "_unix_time_ns"][-1] for body_name in body_names]
+    end_time = min(last_timestamps)*1e-9  # convert to seconds
+
+    timestamp_col = np.arange(start_time, end_time, 1/des_ik_rate)  # generate timestamps at desired IK rate, in seconds
+    df = pd.DataFrame(columns = ["timestamp"] + [body_name + ext for body_name in body_names for ext in ext_list])
+    df["timestamp"] = timestamp_col
+
+    for i, timestamp in enumerate(timestamp_col):
+        for body_name in body_names:
+            closest_idx = np.searchsorted(data[body_name + "_unix_time_ns"] * 1e-9, timestamp, side='right') - 1
+            if closest_idx < 0:
+                closest_idx = 0  # if timestamp is before the first measurement, use the first measurement
+    
+            for j, ext in enumerate(ext_list):
+                df.loc[i, body_name + ext] = data[body_name + "_quaternions"][closest_idx][j]
+    return df
+
+def animate_vive_data(npz_path:str, sensor_bone_offsets: dict = None):
+    """
+    Display a playback of the vive data using matplotlib.
+    """
+    import matplotlib.pyplot as plt
+
+    data = np.load(npz_path)
+    keys = data.keys()
+    body_names = list(set([key.split('_quaternions')[0] for key in keys if '_quaternions' in key]))
+
+    # --- Data Synchronization ---
+    first_timestamps = [data[body_name + "_unix_time_ns"][0] for body_name in body_names]
+    start_time = max(first_timestamps) * 1e-9
+
+    last_timestamps = [data[body_name + "_unix_time_ns"][-1] for body_name in body_names]
+    end_time = min(last_timestamps) * 1e-9
+
+    # Use a reasonable rate for animation, e.g., 30fps
+    anim_rate = 30
+    timestamps = np.arange(start_time, end_time, 1.0 / anim_rate)
+    num_frames = len(timestamps)
+
+    synced_data = {body: {'positions': np.zeros((num_frames, 3)), 'rotations': np.zeros((num_frames, 3, 3))} for body in body_names}
+
+    for body_name in body_names:
+        body_times = data[body_name + "_unix_time_ns"] * 1e-9
+        body_pos = data[body_name + "_positions"]
+        body_quat = data[body_name + "_quaternions"]
+
+        for i, t in enumerate(timestamps):
+            idx = np.searchsorted(body_times, t, side='right') - 1
+            if idx < 0:
+                idx = 0
+            
+            pos = body_pos[idx]
+            rot = R.from_quat(body_quat[idx])
+
+            if sensor_bone_offsets and body_name in sensor_bone_offsets:
+                offset_rot = R.from_matrix(sensor_bone_offsets[body_name])
+                rot = rot * offset_rot.inv()
+
+            synced_data[body_name]['positions'][i] = pos
+            synced_data[body_name]['rotations'][i] = rot.as_matrix()
+
+    # --- Animation Setup ---
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Store plot objects (lines for axes)
+    axis_lines = {body: [ax.plot([], [], [], '-')[0] for _ in range(3)] for body in body_names}
+    colors = ['r', 'g', 'b'] # X, Y, Z
+
+    def set_axes_equal(ax):
+        x_limits = ax.get_xlim3d()
+        y_limits = ax.get_ylim3d()
+        z_limits = ax.get_zlim3d()
+
+        x_range = abs(x_limits[1] - x_limits[0])
+        x_middle = np.mean(x_limits)
+        y_range = abs(y_limits[1] - y_limits[0])
+        y_middle = np.mean(y_limits)
+        z_range = abs(z_limits[1] - z_limits[0])
+        z_middle = np.mean(z_limits)
+
+        plot_radius = 0.5 * max([x_range, y_range, z_range])
+
+        ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+        ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+        ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
+    def init():
+        all_pos = np.vstack([synced_data[body]['positions'] for body in body_names])
+        max_range = (all_pos.max(axis=0) - all_pos.min(axis=0)).max() / 2.0
+        mid = all_pos.mean(axis=0)
+        
+        ax.set_xlim(mid[0] - max_range, mid[0] + max_range)
+        ax.set_ylim(mid[1] - max_range, mid[1] + max_range)
+        ax.set_zlim(mid[2] - max_range, mid[2] + max_range)
+        
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.set_title('Vive Tracker Animation')
+        set_axes_equal(ax)
+        return [line for lines in axis_lines.values() for line in lines]
+
+    def update(frame):
+        all_lines = []
+        for body_name in body_names:
+            origin = synced_data[body_name]['positions'][frame]
+            rotation = synced_data[body_name]['rotations'][frame]
+            
+            for i in range(3): # For each axis (X, Y, Z)
+                axis_vec = rotation[:, i] * 0.1 # 10cm long axes
+                axis_end = origin + axis_vec
+                
+                lines = axis_lines[body_name]
+                lines[i].set_data([origin[0], axis_end[0]], [origin[1], axis_end[1]])
+                lines[i].set_3d_properties([origin[2], axis_end[2]])
+                lines[i].set_color(colors[i])
+                all_lines.append(lines[i])
+        return all_lines
+
+    ani = animation.FuncAnimation(fig, update, frames=num_frames,
+                                  init_func=init, blit=True, interval=1000/anim_rate)
+
+    plt.show()
+
+
+
 if __name__ == "__main__":
     # sensor offest angles should be in the frame of the parent bone. Generally opensim has +z pointing to the right (from a first person perspective)
     #     +x point forward, and +y pointing up (feet to head)
-
+    des_ik_rate = 100
+    # animate_vive_data("data/walk_full_vid/walk_full_vid.npz")
+    orientation_df = vive_dataloader("data/walk_full_vid/walk_full_vid.npz", des_ik_rate=des_ik_rate)
 
     model_folder = "models/gait2354"  # path to folder containing model.osim and geometry
     #orientation_csv = "path/to/orientation_data.csv"
 
     model, state = prepare_model(model_folder)
-    orientation_df = generate_sinusoid_data(num_samples=1000, 
-                                            frequency=0.5, 
-                                            amplitude=np.pi/4,
-                                            central_point=0)  # Generate sinusoidal data with a central point of pi/4
+    #orientation_df = generate_sinusoid_data(num_samples=1000, 
+    #                                        frequency=0.5, 
+    #                                        amplitude=np.pi/4,
+    #                                        central_point=0)  # Generate sinusoidal data with a central point of pi/4
     
     # in the data csv, I use left_arm_q_x... right_arm_q_x... torso_q_x...
     # but we can convert to opensim body names using this dict!
-    data_label_to_osim = {"left_thigh": "femur_l", 
-                          "right_thigh": "femur_r", 
-                          "torso": "pelvis"}
+
+    # @ maisha you could also use "toes_r" if allowing the foot to bend.
+    data_label_to_osim = {"right_foot": "calcn_r", 
+                          "right_knee": "tibia_r", 
+                          "waist": "femur_r"}
     
-    desired_joints = ["hip_flexion_r", "hip_flexion_l"]  # specify which joints we want to save from the IK results
+    desired_joints = ["knee_angle_r", "ankle_angle_r"]  # specify which joints we want to save from the IK results
     zero_pose_timestamp = 0.0  # specify the timestamp in the orientation data that corresponds to the zero pose of the model
     
     sensor_bone_offsets = {
-        "left_thigh": R.from_euler('xyz', [0, 0, 0]).as_matrix(),  # No offset for left thigh
-        "right_thigh": R.from_euler('xyz', [0, 0, 0]).as_matrix(),  # No offset for right thigh
-        "torso": R.from_euler('xyz', [0, 0, 0]).as_matrix(),  # No offset for torso
+        "right_foot": R.from_euler('xyz', [0, 180, 0], degrees=True).as_matrix(),  # No offset for left thigh
+        "right_knee": R.from_euler('xyz', [-90, 0, 0], degrees=True).as_matrix(),  # No offset for right thigh
+        "waist": R.from_euler('xyz', [-90, 0, -90], degrees=True).as_matrix(),  # No offset for torso
     }
 
     oRefs = df_to_orientation_refs(orientation_df, model, state, 
@@ -258,8 +414,6 @@ if __name__ == "__main__":
 
     # Perform IK and save results to CSV
     ik_results = solve_ik(model, ik_solver, state, orientation_df["timestamp"], desired_joints)
-
-    print(ik_results)
 
     # Plot the IK results
     plot_IK_results(ik_results, desired_joints, size=(1, 2))
