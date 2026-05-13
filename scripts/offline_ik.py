@@ -404,9 +404,12 @@ if __name__ == "__main__":
     #     +x point forward, and +y pointing up (feet to head)
     des_ik_rate = 100
     # animate_vive_data("data/walk_full_vid/walk_full_vid.npz")
-    orientation_df = vive_dataloader("data/walk_full/walk_full.npz", des_ik_rate=des_ik_rate)
+    orientation_df = vive_dataloader("data/walk_full_vid/walk_full_vid.npz", des_ik_rate=des_ik_rate)
 
-    animate_vive_data("data/walk_full/walk_full.npz")
+
+
+    #animate_vive_data("data/walk_full/walk_full.npz")
+    #animate_vive_data("data/walk_full_vid/walk_full_vid.npz")
 
     model_folder = "models/gait2354"  # path to folder containing model.osim and geometry
     #orientation_csv = "path/to/orientation_data.csv"
@@ -426,14 +429,25 @@ if __name__ == "__main__":
                           "waist": "femur_r"}
     
     desired_joints = ["knee_angle_r", "ankle_angle_r"]  # specify which joints we want to save from the IK results
-    zero_pose_timestamp = orientation_df["timestamp"].iloc[0] +0.2 # specify the timestamp in the orientation data that corresponds to the zero pose of the model
+    zero_pose_timestamp = orientation_df["timestamp"].iloc[0] + 0.2 # specify the timestamp in the orientation data that corresponds to the zero pose of the model
     
-    sensor_bone_offsets = {
-        "right_foot": R.from_euler('xyz', [0, 180, -15], degrees=True).as_matrix(),  # No offset for left thigh
-        "right_knee": R.from_euler('xyz', [-85, 0, 90], degrees=True).as_matrix(),  # No offset for right thigh
-        "waist": R.from_euler('xyz', [-90, 0, 90], degrees=True).as_matrix(),  # No offset for torso
-    }
 
+    # for setting offsets, imagine the series of rotations you would need to apply to the sensor, to get it to match the
+    # osim axes (osim is y up, x forward, z to subject's righthand side)
+    
+    # offsets for walk_full:
+    # sensor_bone_offsets = {
+    #     "right_foot": R.from_euler('xyz', [0, 180, -15], degrees=True).as_matrix(),  
+    #     "right_knee": R.from_euler('xyz', [-85, 0, 90], degrees=True).as_matrix(), 
+    #     "waist": R.from_euler('xyz', [-90, 0, 90], degrees=True).as_matrix(), 
+    # }
+
+    # offsets for walk_full_vid:
+    sensor_bone_offsets = {
+        "right_foot": R.from_euler('xyz', [0, 180, -15], degrees=True).as_matrix(), 
+        "right_knee": R.from_euler('xyz', [-90, 0, 0], degrees=True).as_matrix(), 
+        "waist": R.from_euler('xyz', [-90, 0, 90], degrees=True).as_matrix(),
+    }
 
     body_names = ["right_foot", "right_knee", "waist"]
     weights = {"right_foot": 0.4, "right_knee": 1.0, "waist": 5.0}
@@ -443,7 +457,7 @@ if __name__ == "__main__":
         weights[data_label_to_osim[body_name]] = weights[body_name]
         del weights[body_name]
 
-    animate_vive_data("data/walk_full/walk_full.npz", sensor_bone_offsets=sensor_bone_offsets)
+    animate_vive_data("data/walk_full_vid/walk_full_vid.npz", sensor_bone_offsets=sensor_bone_offsets)
 
     oRefs = df_to_orientation_refs(orientation_df, model, state, 
                                    zero_pose_timestamp, sensor_bone_offsets, body_names,
@@ -462,8 +476,3 @@ if __name__ == "__main__":
     # wow it solves very fast, maybe track() is quicker with higher rate data? Oh and accuracy was
     # set to values from Patrick's script. Maybe we have too high of an accuracy requirement on 
     # the realtime case and could speed up tracking even more!
-
-    #TODO: get this working on another pc, the ROG seems to have issues with the built-in osim visualizer,
-    #      but this should be very easy to implement
-    #model.setUseVisualizer(True)
-    #visualize_ik_results(model, ik_results)
