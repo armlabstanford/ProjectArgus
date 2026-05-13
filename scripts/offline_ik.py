@@ -20,6 +20,7 @@ from mpl_toolkits.mplot3d import Axes3D
 # quat conventions:
 # scipy is x y z w
 # opensim is w x y z
+# vive is w x y z
 
 def generate_sinusoid_data(num_samples:int, frequency:float, amplitude:float, central_point:float):
     """
@@ -146,9 +147,9 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
         odom_ref = np.array([orientation_df[body_name + ext].iloc[zero_pose_idx] for ext in ext_list])
         odom_ref = R.from_quat(odom_ref, scalar_first=True).as_matrix()
         sensor_offset = sensor_bone_offsets[body_name]
-        
-        ref_pose[body_name] = R_GB @ sensor_offset @ odom_ref.T
-        print(body_name, "\n",ref_pose[body_name])
+
+        ref_pose[body_name] = R_GB @ sensor_offset.T @ odom_ref.T
+        print(body_name, "R_GB\n", R_GB, "\nsensor offset\n", sensor_offset, "\nodom ref\n", odom_ref, "\nref pose\n", ref_pose[body_name])
 
     # extract the sensor orientation at the zero pose timestamp, and compute the transforms we 
     # will apply to the rest of the orientation data.
@@ -163,8 +164,9 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
         for j, body_name in enumerate(body_names):
             cur_quat = np.array([row[body_name + ext] for ext in ext_list])
             #print(body_name, cur_quat)
-    
-            R_rel = ref_pose[body_name] @ R.from_quat(cur_quat, scalar_first=True).as_matrix()  
+            sensor_offset = sensor_bone_offsets[body_name]
+            R_rel = sensor_offset.T @ R.from_quat(cur_quat, scalar_first=True).as_matrix().T @ ref_pose[body_name].T
+            R_rel = R_rel.T
             quat_rel = R.from_matrix(R_rel).as_quat(scalar_first=True)  # Convert back to quaternion
             if i == 0:
                 print(body_name, "relative rotmat at zero pose timestamp:\n", R_rel)
@@ -287,10 +289,25 @@ def animate_vive_data(npz_path:str, sensor_bone_offsets: dict = None):
 
     synced_data = {body: {'positions': np.zeros((num_frames, 3)), 'rotations': np.zeros((num_frames, 3, 3))} for body in body_names}
 
+    # print out initial relative poses between sensors:
+    for i in range(len(body_names)-1):
+        body_name1 = body_names[i]
+        body_name2 = body_names[i+1]
+        pose1 = data[body_name1 + "_quaternions"][0]  
+        pose2 = data[body_name2 + "_quaternions"][0]
+
+        rel_mat = R.from_quat(pose1, scalar_first=True).as_matrix().T @ R.from_quat(pose2, scalar_first=True).as_matrix()
+        rel_euler = R.from_matrix(rel_mat).as_euler('xyz', degrees=True)
+        print(f"Initial relative orientation from {body_name1} to {body_name2} (degrees): {rel_euler}")
+
     for body_name in body_names:
         body_times = data[body_name + "_unix_time_ns"] * 1e-9
         body_pos = data[body_name + "_positions"]
         body_quat = data[body_name + "_quaternions"]
+
+        initial_pose = R.from_quat(body_quat[0], scalar_first=True).as_matrix()
+
+        # 
 
         for i, t in enumerate(timestamps):
             idx = np.searchsorted(body_times, t, side='right') - 1
@@ -298,14 +315,14 @@ def animate_vive_data(npz_path:str, sensor_bone_offsets: dict = None):
                 idx = 0
             
             pos = body_pos[idx]
-            rot = R.from_quat(body_quat[idx])
+            #rot = R.from_quat(body_quat[idx], scalar_first=True)
 
-            if sensor_bone_offsets and body_name in sensor_bone_offsets:
-                offset_rot = R.from_matrix(sensor_bone_offsets[body_name])
-                rot = rot * offset_rot.inv()
+            rot = sensor_bone_offsets[body_name].T @ R.from_quat(body_quat[idx], scalar_first=True).as_matrix().T @ initial_pose @ sensor_bone_offsets[body_name]
+            rot = rot.T
+            #print(rot)
 
             synced_data[body_name]['positions'][i] = pos
-            synced_data[body_name]['rotations'][i] = rot.as_matrix()
+            synced_data[body_name]['rotations'][i] = rot
 
     # --- Animation Setup ---
     fig = plt.figure(figsize=(10, 8))
@@ -371,14 +388,14 @@ def animate_vive_data(npz_path:str, sensor_bone_offsets: dict = None):
 
     plt.show()
 
-
-
 if __name__ == "__main__":
-    # sensor offest angles should be in the frame of the parent bone. Generally opensim has +z pointing to the right (from a first person perspective)
+    # sensor offset angles should be in the frame of the parent bone. Generally opensim has +z pointing to the right (from a first person perspective)
     #     +x point forward, and +y pointing up (feet to head)
     des_ik_rate = 100
     # animate_vive_data("data/walk_full_vid/walk_full_vid.npz")
-    orientation_df = vive_dataloader("data/walk_full_vid/walk_full_vid.npz", des_ik_rate=des_ik_rate)
+    orientation_df = vive_dataloader("data/walk_full/walk_full.npz", des_ik_rate=des_ik_rate)
+
+    #animate_vive_data("data/walk_full/walk_full.npz")
 
     model_folder = "models/gait2354"  # path to folder containing model.osim and geometry
     #orientation_csv = "path/to/orientation_data.csv"
@@ -397,14 +414,16 @@ if __name__ == "__main__":
                           "right_knee": "tibia_r", 
                           "waist": "femur_r"}
     
-    desired_joints = ["knee_angle_r", "ankle_angle_r"]  # specify which joints we want to save from the IK results
+    desired_joints = ["pelvis_tilt", "pelvis_list", "pelvis_rotation", "hip_flexion_r", "hip_adduction_r", "hip_rotation_r", "knee_angle_r", "ankle_angle_r"]  # specify which joints we want to save from the IK results
     zero_pose_timestamp = 0.0  # specify the timestamp in the orientation data that corresponds to the zero pose of the model
     
     sensor_bone_offsets = {
-        "right_foot": R.from_euler('xyz', [0, 180, 0], degrees=True).as_matrix(),  # No offset for left thigh
-        "right_knee": R.from_euler('xyz', [-90, 0, 0], degrees=True).as_matrix(),  # No offset for right thigh
-        "waist": R.from_euler('xyz', [-90, 0, -90], degrees=True).as_matrix(),  # No offset for torso
+        "right_foot": R.from_euler('xyz', [0, 0, 10], degrees=True).as_matrix(),  # No offset for left thigh
+        "right_knee": R.from_euler('xyz', [-90, 0, 100], degrees=True).as_matrix(),  # No offset for right thigh
+        "waist": R.from_euler('xyz', [-90, 0, 100], degrees=True).as_matrix(),  # No offset for torso
     }
+
+   # animate_vive_data("data/walk_full/walk_full.npz", sensor_bone_offsets=sensor_bone_offsets)
 
     oRefs = df_to_orientation_refs(orientation_df, model, state, 
                                    zero_pose_timestamp, sensor_bone_offsets,
@@ -416,7 +435,7 @@ if __name__ == "__main__":
     ik_results = solve_ik(model, ik_solver, state, orientation_df["timestamp"], desired_joints)
 
     # Plot the IK results
-    plot_IK_results(ik_results, desired_joints, size=(1, 2))
+    plot_IK_results(ik_results, desired_joints, size=(3, 3))
 
     # wow it solves very fast, maybe track() is quicker with higher rate data? Oh and accuracy was
     # set to values from Patrick's script. Maybe we have too high of an accuracy requirement on 
