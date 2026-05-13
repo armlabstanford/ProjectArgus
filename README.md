@@ -79,6 +79,8 @@ Currently this repo supports a bimanual upper arm model which is saved in the re
 
 To expand this to other body segments (like the legs) please feel free to add to the models folder and make a PR. Sensor topic names should correspond to the bone to which they are attached in opensim, check your model file to determine this.
 
+For setting sensor offset axes, I suggest using xyz euler angles because it's more intuitive. Imagine applying the transforms in xyz order to the osim bone axes, so that they align with the sensor axes. This is the transform from bone, to sensor.
+
 
 ## Bag Synchronization
 This is a tool used to merge multiple bags and order the resultant bag based on the input header.stamps. Intended to help combine data collected by multiple sensors synchronized to a world clock.

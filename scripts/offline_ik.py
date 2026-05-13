@@ -432,8 +432,8 @@ if __name__ == "__main__":
     zero_pose_timestamp = orientation_df["timestamp"].iloc[0] + 0.2 # specify the timestamp in the orientation data that corresponds to the zero pose of the model
     
 
-    # for setting offsets, imagine the series of rotations you would need to apply to the sensor, to get it to match the
-    # osim axes (osim is y up, x forward, z to subject's righthand side)
+    # for setting offsets, imagine the series of rotations you would need to apply to the osim axes, to get it to match the
+    # sensor axes (osim is y up, x forward, z to subject's righthand side)
     
     # offsets for walk_full:
     # sensor_bone_offsets = {
