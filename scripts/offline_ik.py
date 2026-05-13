@@ -71,15 +71,16 @@ def prepare_model(model_folder_path:str):
 
     return model, state
 
-def prepare_ik_solver(model:osim.Model, oRefs:osim.OrientationsReference,
+def prepare_ik_solver(model:osim.Model, oRefs:osim.OrientationsReference, weights:dict,
                       constraint_var:float=10.0,
-                      accuracy:float=0.001):
+                      accuracy:float=0.0001):
     
     mRefs = osim.MarkersReference()
     coordinateReferences = osim.SimTKArrayCoordinateReference()
 
     ik_solver = osim.InverseKinematicsSolver(model, mRefs, oRefs, coordinateReferences, constraint_var)
     ik_solver.setAccuracy(accuracy)
+
     return ik_solver
 
 def solve_ik(model:osim.Model, ik_solver:osim.InverseKinematicsSolver, state:osim.State, timestamps:list, desired_joints:list):
@@ -106,7 +107,9 @@ def solve_ik(model:osim.Model, ik_solver:osim.InverseKinematicsSolver, state:osi
     return ik_results
 
 def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initial_state:osim.State, 
-                           zero_pose_timestamp:float, sensor_bone_offsets:dict, data_label_to_osim:dict=None
+                           zero_pose_timestamp:float, sensor_bone_offsets:dict, body_names:list, 
+                           weights:dict,
+                           data_label_to_osim:dict=None
                            ):
     """
     Expects a dataframe of format:
@@ -120,8 +123,6 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
     """
 
     ext_list = ["_q_w", "_q_x", "_q_y", "_q_z"]
-    col_labels = list(orientation_df.columns)
-    body_names = list(set([col.split('_q_')[0] for col in col_labels if '_q_' in col]))
 
     if data_label_to_osim is not None:
         osim_body_names = [data_label_to_osim.get(label, label) for label in body_names]
@@ -178,7 +179,13 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
         
     # convert quat time series table to rotation matrix time series table
     rotTable = osim.OpenSenseUtilities.convertQuaternionsToRotations(quatTable)
-    return osim.OrientationsReference(rotTable)
+    
+    orientation_weight_set = osim.OrientationWeightSet()
+    [orientation_weight_set.cloneAndAppend(osim.OrientationWeight(body_name, weights[body_name])) for body_name in weights.keys()]
+
+    oRefs = osim.OrientationsReference(rotTable, orientation_weight_set)
+
+    return oRefs
 
 def osim_rot_to_numpy(osim_R:osim.Rotation):
     R = osim_R.asMat33()   # SimTK Mat33
@@ -316,9 +323,12 @@ def animate_vive_data(npz_path:str, sensor_bone_offsets: dict = None):
             
             pos = body_pos[idx]
             #rot = R.from_quat(body_quat[idx], scalar_first=True)
-
-            rot = sensor_bone_offsets[body_name].T @ R.from_quat(body_quat[idx], scalar_first=True).as_matrix().T @ initial_pose @ sensor_bone_offsets[body_name]
-            rot = rot.T
+            if sensor_bone_offsets is not None:
+                rot = sensor_bone_offsets[body_name].T @ R.from_quat(body_quat[idx], scalar_first=True).as_matrix().T @ initial_pose @ sensor_bone_offsets[body_name]
+                rot = rot.T
+            else:
+                rot = R.from_quat(body_quat[idx], scalar_first=True).as_matrix()
+            
             #print(rot)
 
             synced_data[body_name]['positions'][i] = pos
@@ -388,6 +398,7 @@ def animate_vive_data(npz_path:str, sensor_bone_offsets: dict = None):
 
     plt.show()
 
+
 if __name__ == "__main__":
     # sensor offset angles should be in the frame of the parent bone. Generally opensim has +z pointing to the right (from a first person perspective)
     #     +x point forward, and +y pointing up (feet to head)
@@ -395,7 +406,7 @@ if __name__ == "__main__":
     # animate_vive_data("data/walk_full_vid/walk_full_vid.npz")
     orientation_df = vive_dataloader("data/walk_full/walk_full.npz", des_ik_rate=des_ik_rate)
 
-    #animate_vive_data("data/walk_full/walk_full.npz")
+    animate_vive_data("data/walk_full/walk_full.npz")
 
     model_folder = "models/gait2354"  # path to folder containing model.osim and geometry
     #orientation_csv = "path/to/orientation_data.csv"
@@ -414,28 +425,39 @@ if __name__ == "__main__":
                           "right_knee": "tibia_r", 
                           "waist": "femur_r"}
     
-    desired_joints = ["pelvis_tilt", "pelvis_list", "pelvis_rotation", "hip_flexion_r", "hip_adduction_r", "hip_rotation_r", "knee_angle_r", "ankle_angle_r"]  # specify which joints we want to save from the IK results
-    zero_pose_timestamp = 0.0  # specify the timestamp in the orientation data that corresponds to the zero pose of the model
+    desired_joints = ["knee_angle_r", "ankle_angle_r"]  # specify which joints we want to save from the IK results
+    zero_pose_timestamp = orientation_df["timestamp"].iloc[0] +0.2 # specify the timestamp in the orientation data that corresponds to the zero pose of the model
     
     sensor_bone_offsets = {
-        "right_foot": R.from_euler('xyz', [0, 0, 10], degrees=True).as_matrix(),  # No offset for left thigh
-        "right_knee": R.from_euler('xyz', [-90, 0, 100], degrees=True).as_matrix(),  # No offset for right thigh
-        "waist": R.from_euler('xyz', [-90, 0, 100], degrees=True).as_matrix(),  # No offset for torso
+        "right_foot": R.from_euler('xyz', [0, 180, -15], degrees=True).as_matrix(),  # No offset for left thigh
+        "right_knee": R.from_euler('xyz', [-85, 0, 90], degrees=True).as_matrix(),  # No offset for right thigh
+        "waist": R.from_euler('xyz', [-90, 0, 90], degrees=True).as_matrix(),  # No offset for torso
     }
 
-   # animate_vive_data("data/walk_full/walk_full.npz", sensor_bone_offsets=sensor_bone_offsets)
+
+    body_names = ["right_foot", "right_knee", "waist"]
+    weights = {"right_foot": 0.4, "right_knee": 1.0, "waist": 5.0}
+
+    # translate to osim names
+    for body_name in data_label_to_osim.keys():
+        weights[data_label_to_osim[body_name]] = weights[body_name]
+        del weights[body_name]
+
+    animate_vive_data("data/walk_full/walk_full.npz", sensor_bone_offsets=sensor_bone_offsets)
 
     oRefs = df_to_orientation_refs(orientation_df, model, state, 
-                                   zero_pose_timestamp, sensor_bone_offsets,
+                                   zero_pose_timestamp, sensor_bone_offsets, body_names,
+                                    weights,
                                    data_label_to_osim=data_label_to_osim)
     
-    ik_solver = prepare_ik_solver(model, oRefs)
+    
+    ik_solver = prepare_ik_solver(model, oRefs, weights)
 
     # Perform IK and save results to CSV
     ik_results = solve_ik(model, ik_solver, state, orientation_df["timestamp"], desired_joints)
 
     # Plot the IK results
-    plot_IK_results(ik_results, desired_joints, size=(3, 3))
+    plot_IK_results(ik_results, desired_joints, size=(2, 1))
 
     # wow it solves very fast, maybe track() is quicker with higher rate data? Oh and accuracy was
     # set to values from Patrick's script. Maybe we have too high of an accuracy requirement on 
