@@ -143,6 +143,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+argus_env/
 
 # Spyder project settings
 .spyderproject
@@ -211,4 +212,5 @@ install/*
 build/*
 log/*
 bags/*
+data/*
 

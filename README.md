@@ -3,7 +3,19 @@ This repo uses ros2 humble to combine data from multiple odometry sensors affixe
 
 This work relies on real-time modifications to opensim made for OpenSenseRT/RealTimeKin: https://github.com/pslade2/RealTimeKin .
 
-## Setup Instructions
+## Offline IK Setup Instructions
+For offline IK, we don't need ros or realtime opensim functionality, so we can use the opensim pip packages. The following is tested on Ubuntu 22.04.
+
+```
+conda create -n opensim_env python=3.10
+conda activate opensim_env
+pip install matplotlib numpy scipy pandas
+conda install -c opensim-org opensim
+```
+
+To debug with visualizations, use write_opensim_mot() to save a .mot file, which can be opened in the opensim desktop gui. The visualization through pybindings seems to be broken on Ubuntu and windows, so stick with this method or make a new visualizer.
+
+## OpenSim-ROS2 Setup Instructions
 I experienced issues when building opensim with an active ros environment due to fmt versions. I would advise uninstalling ros2 temporarily, then performing the following steps to build opensim from source:
 
 1) uninstall ros2-humble-desktop and specifically libfmt-dev and libspdlog-dev or any variants
@@ -69,11 +81,24 @@ Currently this repo supports a bimanual upper arm model which is saved in the re
 
 To expand this to other body segments (like the legs) please feel free to add to the models folder and make a PR. Sensor topic names should correspond to the bone to which they are attached in opensim, check your model file to determine this.
 
+For setting sensor offset axes, I suggest using xyz euler angles because it's more intuitive. Imagine applying the transforms in xyz order to the osim bone axes, so that they align with the sensor axes. This is the transform from bone, to sensor.
+
 
 ## Bag Synchronization
 This is a tool used to merge multiple bags and order the resultant bag based on the input header.stamps. Intended to help combine data collected by multiple sensors synchronized to a world clock.
 
 For python setup:
 ```
-python3-venv 
+python3 -m venv argus_env
+source argus_env/bin/activate
+pip install matplotlib
+```
+
+This assumes you have ros2 installed on ubuntu 22.04, which includes relevant python bindings.
+
+And to launch:
+```
+python merge_bags.py outputbagpath \
+    bagpath1 humerus_r \
+    bagpath2 thorax
 ```

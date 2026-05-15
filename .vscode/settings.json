@@ -1,3 +1,6 @@
 {
-    "cmake.sourceDirectory": "/home/argus/Argus/src/argus_server"
+    "cmake.sourceDirectory": "/home/argus/Argus/src/argus_server",
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "ros.distro": "humble"
 }
