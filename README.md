@@ -7,9 +7,13 @@ This work relies on real-time modifications to opensim made for OpenSenseRT/Real
 For offline IK, we don't need ros or realtime opensim functionality, so we can use the opensim pip packages. The following is tested on Ubuntu 22.04.
 
 ```
-conda create -n opensim_env python=3.10
+conda create -n opensim_env python=3.10 -y
 conda activate opensim_env
-pip install matplotlib numpy scipy pandas
+conda install -c conda-forge \
+    numpy \
+    pandas \
+    scipy \
+    matplotlib
 conda install -c opensim-org opensim
 ```
 
