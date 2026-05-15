@@ -70,7 +70,6 @@ def merge_bags_with_namespaces(bag_namespace_pairs: List[Tuple[str, str]], outpu
 
     print(f"Total messages: {len(all_msgs)}")
 
-    # ✅ Plot timestamps
     print("Plotting timestamps...")
     plt.figure()
 
@@ -93,8 +92,7 @@ def merge_bags_with_namespaces(bag_namespace_pairs: List[Tuple[str, str]], outpu
     plt.grid(True)
 
     plt.show()
-
-    # ✅ Continue with merge
+    
     print("Sorting by header.stamp...")
     all_msgs.sort(key=lambda x: x[0])
 

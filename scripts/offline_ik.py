@@ -10,7 +10,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 import matplotlib.animation as animation
 from mpl_toolkits.mplot3d import Axes3D
-
+from pathlib import Path
 
 # TODO: need to test everything with actual data!
 # TODO: need to add visualization of IK results (doesn't work on ROG)
@@ -399,6 +399,89 @@ def animate_vive_data(npz_path:str, sensor_bone_offsets: dict = None):
     plt.show()
 
 
+def write_opensim_mot(
+    df: pd.DataFrame,
+    output_path: str,
+    in_degrees: bool = True,
+    model_name: str = "Generated from pandas DataFrame",
+):
+    """
+    Write a pandas DataFrame of OpenSim joint coordinates to a .mot file.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Must contain a 'timestamp' column and any number of OpenSim
+        coordinate columns, e.g.
+            ['timestamp',
+             'pelvis_tilt',
+             'pelvis_list',
+             'pelvis_rotation',
+             'hip_flexion_r',
+             ... ]
+
+    output_path : str
+        Path to output .mot file.
+
+    in_degrees : bool
+        Whether rotational coordinates are expressed in degrees.
+        OpenSim IK motion files are typically in degrees.
+
+    model_name : str
+        Metadata string written into the file header.
+    """
+
+    if "timestamp" not in df.columns:
+        raise ValueError("DataFrame must contain a 'timestamp' column")
+
+    # Make copy so we do not mutate caller dataframe
+    df = df.copy()
+
+    # Ensure timestamps are float
+    df["timestamp"] = df["timestamp"].astype(float)
+
+    # OpenSim expects first column named 'time'
+    df = df.rename(columns={"timestamp": "time"})
+
+    # Optional: sort by time
+    df = df.sort_values("time").reset_index(drop=True)
+
+    # Compute metadata
+    n_rows = len(df)
+    n_cols = len(df.columns)
+
+    time_start = df["time"].iloc[0]
+    time_end = df["time"].iloc[-1]
+
+    output_path = Path(output_path)
+
+    with open(output_path, "w") as f:
+        # --- OpenSim MOT header ---
+        f.write(f"name {model_name}\n")
+        f.write("datacolumns {}\n".format(n_cols))
+        f.write("datarows {}\n".format(n_rows))
+        f.write("range {} {}\n".format(time_start, time_end))
+        f.write(f"inDegrees {'yes' if in_degrees else 'no'}\n")
+        f.write("endheader\n")
+
+        # Column labels
+        f.write("\t".join(df.columns) + "\n")
+
+        # Data rows
+        for _, row in df.iterrows():
+            vals = []
+
+            for val in row.values:
+                if pd.isna(val):
+                    vals.append("nan")
+                else:
+                    vals.append(f"{float(val):.8f}")
+
+            f.write("\t".join(vals) + "\n")
+
+    print(f"Wrote MOT file to: {output_path}")
+
+
 if __name__ == "__main__":
     # sensor offset angles should be in the frame of the parent bone. Generally opensim has +z pointing to the right (from a first person perspective)
     #     +x point forward, and +y pointing up (feet to head)
@@ -472,6 +555,19 @@ if __name__ == "__main__":
 
     # Plot the IK results
     plot_IK_results(ik_results, desired_joints, size=(2, 1))
+
+
+    
+    for col in ik_results.columns:
+        if col != "timestamp":
+            ik_results[col] = ik_results[col]*180/np.pi
+
+    ik_results["pelvis_tx"] = -orientation_df["waist_x"]
+    ik_results["pelvis_tz"] = -orientation_df["waist_z"]
+
+    write_opensim_mot(ik_results, "ik_results_walk_full_vid.mot", 
+                      in_degrees=True, 
+                      model_name="IK Results from walk_full_vid")
 
     # wow it solves very fast, maybe track() is quicker with higher rate data? Oh and accuracy was
     # set to values from Patrick's script. Maybe we have too high of an accuracy requirement on 

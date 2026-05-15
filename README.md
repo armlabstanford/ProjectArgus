@@ -13,6 +13,8 @@ pip install matplotlib numpy scipy pandas
 conda install -c opensim-org opensim
 ```
 
+To debug with visualizations, use write_opensim_mot() to save a .mot file, which can be opened in the opensim desktop gui. The visualization through pybindings seems to be broken on Ubuntu and windows, so stick with this method or make a new visualizer.
+
 ## OpenSim-ROS2 Setup Instructions
 I experienced issues when building opensim with an active ros environment due to fmt versions. I would advise uninstalling ros2 temporarily, then performing the following steps to build opensim from source:
 
@@ -87,5 +89,16 @@ This is a tool used to merge multiple bags and order the resultant bag based on 
 
 For python setup:
 ```
-python3-venv 
+python3 -m venv argus_env
+source argus_env/bin/activate
+pip install matplotlib
+```
+
+This assumes you have ros2 installed on ubuntu 22.04, which includes relevant python bindings.
+
+And to launch:
+```
+python merge_bags.py outputbagpath \
+    bagpath1 humerus_r \
+    bagpath2 thorax
 ```
