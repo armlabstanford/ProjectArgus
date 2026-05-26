@@ -45,9 +45,15 @@ def generate_launch_description():
         'humerus_r': [0.0, 0.0, 0.0],
     }
 
+    sensor_weights = {
+        'thorax': 40.0,
+        'humerus_r': 1.0,
+    }
+
     # The body_calibrations dictionary needs to be converted to a list of strings
     # to be passed as a ROS parameter. Each string is formatted as "key:value".
     body_calibrations_param = [f"{key}:{','.join(map(str, value))}" for key, value in body_calibrations.items()]
+    sensor_weights_param = [f"{key}:{value}" for key, value in sensor_weights.items()]
 
     return LaunchDescription([
 
@@ -63,7 +69,7 @@ def generate_launch_description():
                     'topic_names': topic_list,
                     'joint_outputs': joint_outputs,
                     'body_calibrations': body_calibrations_param,
-                    
+                    'sensor_weights': sensor_weights_param, 
                 }
             ]
         )

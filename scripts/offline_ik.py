@@ -166,8 +166,9 @@ def df_to_orientation_refs(orientation_df:pd.DataFrame, model:osim.Model, initia
             cur_quat = np.array([row[body_name + ext] for ext in ext_list])
             #print(body_name, cur_quat)
             sensor_offset = sensor_bone_offsets[body_name]
-            R_rel = sensor_offset.T @ R.from_quat(cur_quat, scalar_first=True).as_matrix().T @ ref_pose[body_name].T
-            R_rel = R_rel.T
+
+            R_rel = ref_pose[body_name] @ R.from_quat(cur_quat, scalar_first=True).as_matrix() @ sensor_offset
+
             quat_rel = R.from_matrix(R_rel).as_quat(scalar_first=True)  # Convert back to quaternion
             if i == 0:
                 print(body_name, "relative rotmat at zero pose timestamp:\n", R_rel)
