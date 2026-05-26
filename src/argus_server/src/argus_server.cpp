@@ -75,6 +75,11 @@ public:
       std::vector<std::string>{}
     );
 
+    this->declare_parameter<std::vector<std::string>>(
+      "sensor_weights",
+      std::vector<std::string>{}
+    );
+
     // Get the parameter values
     std::string model_folder_path;
     this->get_parameter("model_folder_path", model_folder_path);
@@ -87,10 +92,13 @@ public:
 
     std::vector<std::string> body_calibrations;
     this->get_parameter("body_calibrations", body_calibrations);
-    
+
+    std::vector<std::string> sensor_weights;
+    this->get_parameter("sensor_weights", sensor_weights);
+    RCLCPP_INFO(this->get_logger(), "Sensor weights parameter size: %d", static_cast<int>(sensor_weights.size()));
     // run system initialization (creation of all objects)
     // later we will run the zero-ing process, when user requests it.
-    init_system(model_folder_path, topic_names, joint_outputs, body_calibrations);
+    init_system(model_folder_path, topic_names, joint_outputs, body_calibrations, sensor_weights);
   }
 
 private:
@@ -104,43 +112,12 @@ private:
    * @param topic_names List of odometry topics to subscribe to.
    * @param joint_outputs List of joint names to publish.
    */
-  void init_system(const std::string model_folder_path, const std::vector<std::string> topic_names, const std::vector<std::string> joint_outputs, const std::vector<std::string>& body_calibrations)
+  void init_system(const std::string model_folder_path, const std::vector<std::string> topic_names, 
+    const std::vector<std::string> joint_outputs, const std::vector<std::string>& body_calibrations,
+    const std::vector<std::string>& sensor_weights)
   {
-    RCLCPP_INFO(this->get_logger(), "Initializing ArgusServer system...");
-
-    // Parse body calibrations
-    for (const auto& calib_str : body_calibrations) {
-        size_t delimiter_pos = calib_str.find(':');
-        if (delimiter_pos == std::string::npos) {
-            RCLCPP_WARN(this->get_logger(), "Invalid body calibration string format: %s", calib_str.c_str());
-            continue;
-        }
-
-        std::string body_name = calib_str.substr(0, delimiter_pos);
-        std::string values_str = calib_str.substr(delimiter_pos + 1);
-
-        std::stringstream ss(values_str);
-        std::string value;
-        std::vector<double> euler_angles;
-        while (std::getline(ss, value, ',')) {
-            try {
-                euler_angles.push_back(std::stod(value));
-            } catch (const std::invalid_argument& ia) {
-                RCLCPP_WARN(this->get_logger(), "Invalid number in body calibration for %s: %s", body_name.c_str(), value.c_str());
-                euler_angles.clear();
-                break;
-            }
-        }
-
-        if (euler_angles.size() == 3) {
-            SimTK::Rotation rot(SimTK::BodyRotationSequence, euler_angles[0], SimTK::XAxis, euler_angles[1], SimTK::YAxis, euler_angles[2], SimTK::ZAxis);
-            body_calibration_rotations[body_name] = rot;
-            RCLCPP_INFO(this->get_logger(), "Loaded calibration for %s", body_name.c_str());
-        } else {
-            RCLCPP_WARN(this->get_logger(), "Incorrect number of euler angles for %s", body_name.c_str());
-        }
-    }
-
+    ParseBodyCalibrations(body_calibrations);
+    ParseOrientationWeights(sensor_weights); // Call the new function
 
     auto now = this->get_clock()->now();
     double timestamp = now.seconds();
@@ -246,7 +223,8 @@ private:
     coordinate_refs_.clear();
 
     // this is orientation constraints, which is the only thing we actually will constrain
-    orientations_ref_ = std::make_shared<OpenSim::BufferedOrientationsReference>(initial_table);
+    OpenSim::Set<OpenSim::OrientationWeight> sensor_weights_set = construct_orientation_weights(sensor_weights_map);
+    orientations_ref_ = std::make_shared<OpenSim::BufferedOrientationsReference>(initial_table, &sensor_weights_set);
 
     // Construct the IK solver and keep it on the class so other methods can use it.
     ik_solver_ = std::make_unique<OpenSim::InverseKinematicsSolver>(
@@ -359,7 +337,7 @@ private:
         SimTK::Rotation cur_odom_R(q_odom);
 
         // Compute reference offset
-        SimTK::Rotation ref_odom_R = cur_body_R * body_calibration_rotations[segment_name] * ~cur_odom_R;
+        SimTK::Rotation ref_odom_R = cur_body_R * ~body_calibration_rotations[segment_name] * ~cur_odom_R;
         SimTK::Quaternion ref_quat(ref_odom_R);
 
         // Convert back to ROS msg
@@ -422,7 +400,7 @@ private:
       SimTK::Rotation R_ref(q_ref);
       SimTK::Rotation R_cur(q_cur);
 
-      SimTK::Rotation R_rel = R_ref * R_cur;
+      SimTK::Rotation R_rel = R_ref * R_cur * body_calibration_rotations[segment_name];
 
       dataRow[i] = R_rel;
 
@@ -538,6 +516,93 @@ private:
     return result;
   }
 
+
+  OpenSim::Set<OpenSim::OrientationWeight> construct_orientation_weights(std::unordered_map<std::string, double>& sensor_weights) 
+  {
+    RCLCPP_INFO(this->get_logger(), "Constructing orientation weights for IK solver...");
+    OpenSim::Set<OpenSim::OrientationWeight> weights;
+    for (const auto& pair : sensor_weights) {
+      RCLCPP_INFO(this->get_logger(), "Sensor: %s, Weight: %f", pair.first.c_str(), pair.second);
+    }
+
+    for (int i = 0; i < tracked_segment_count; ++i) {
+      if (sensor_weights.find(segment_ref[i]) == sensor_weights.end()) {
+        RCLCPP_WARN(this->get_logger(), "No weight found for segment '%s', defaulting to 1.0", segment_ref[i].c_str());
+        weights.cloneAndAppend(OpenSim::OrientationWeight(segment_ref[i], 1.0));
+        continue;
+      }
+      RCLCPP_INFO(this->get_logger(), "Setting orientation weight for segment %s: %f", segment_ref[i].c_str(), sensor_weights[segment_ref[i]]);
+      weights.cloneAndAppend(OpenSim::OrientationWeight(segment_ref[i], sensor_weights.at(segment_ref[i])));
+    }
+
+    return weights;
+  }
+
+  void ParseBodyCalibrations(std::vector<std::string> body_calibrations)
+  {
+        // Parse body calibrations
+    for (const auto& calib_str : body_calibrations) {
+      size_t delimiter_pos = calib_str.find(':');
+      if (delimiter_pos == std::string::npos) {
+          RCLCPP_WARN(this->get_logger(), "Invalid body calibration string format: %s", calib_str.c_str());
+          continue;
+      }
+
+      std::string body_name = calib_str.substr(0, delimiter_pos);
+      std::string values_str = calib_str.substr(delimiter_pos + 1);
+
+      std::stringstream ss(values_str);
+      std::string value;
+      std::vector<double> euler_angles;
+      while (std::getline(ss, value, ',')) {
+          try {
+              euler_angles.push_back(std::stod(value));
+          } catch (const std::invalid_argument& ia) {
+              RCLCPP_WARN(this->get_logger(), "Invalid number in body calibration for %s: %s", body_name.c_str(), value.c_str());
+              euler_angles.clear();
+              break;
+          }
+      }
+
+      if (euler_angles.size() == 3) {
+          SimTK::Rotation rot(SimTK::BodyRotationSequence, euler_angles[0], SimTK::XAxis, euler_angles[1], SimTK::YAxis, euler_angles[2], SimTK::ZAxis);
+          body_calibration_rotations[body_name] = rot;
+          RCLCPP_INFO(this->get_logger(), "Loaded calibration for %s", body_name.c_str());
+      } else {
+          RCLCPP_WARN(this->get_logger(), "Incorrect number of euler angles for %s", body_name.c_str());
+      }
+    }
+  }
+  
+  void ParseOrientationWeights(std::vector<std::string> sensor_weights)
+  {
+            // Parse sensor weights
+    for (const auto& weight_str : sensor_weights) {
+      size_t delimiter_pos = weight_str.find(':');
+      if (delimiter_pos == std::string::npos) {
+          RCLCPP_WARN(this->get_logger(), "Invalid sensor weight string format: %s", weight_str.c_str());
+          continue;
+      }
+
+      std::string body_name = weight_str.substr(0, delimiter_pos);
+      std::string value = weight_str.substr(delimiter_pos + 1);
+
+      RCLCPP_INFO(this->get_logger(), "Parsing sensor weight for body '%s' with value string '%s'", body_name.c_str(), value.c_str());
+
+      double sensor_weight;
+
+      try {
+          sensor_weight = std::stod(value);
+      } catch (const std::invalid_argument& ia) {
+          RCLCPP_WARN(this->get_logger(), "Invalid number in sensor weight for %s: %s", body_name.c_str(), value.c_str());
+          continue;
+      }
+      
+
+      sensor_weights_map[body_name] = sensor_weight;
+    }
+  }
+
   // --- Member Variables ---
 
   // OpenSim objects
@@ -557,6 +622,7 @@ private:
   std::unordered_map<std::string, geometry_msgs::msg::Quaternion> cur_odom_data; ///< Current odometry data.
   std::unordered_map<std::string, geometry_msgs::msg::Quaternion> ref_odom_data; ///< Reference odometry data for zeroing.
   std::unordered_map<std::string, SimTK::Rotation> body_calibration_rotations; ///< Calibration rotations for each body.
+  std::unordered_map<std::string, double> sensor_weights_map; ///< Weights for each sensor in the IK solver.
   std::mutex odom_mutex; ///< Mutex to protect access to odometry data.
 
   // Timers and tracking variables
