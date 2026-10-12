@@ -214,3 +214,7 @@ log/*
 bags/*
 data/*
 
+# One computer's Wi-Fi interface names and uplink SSID.
+argus.local.conf
+
+tmp/*
