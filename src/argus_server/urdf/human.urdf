@@ -324,6 +324,13 @@
       <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
     </inertial>
   </link>
+  <link name="RightShoulder_f3">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="1e-05"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </link>
   <link name="RightUpperArm">
     <inertial>
       <origin xyz="0.0 -0.1581 0.0" rpy="1.5708 0.0 0.0"/>
@@ -461,6 +468,13 @@
     </inertial>
   </link>
   <link name="LeftShoulder_f2">
+    <inertial>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+      <mass value="1e-05"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </link>
+  <link name="LeftShoulder_f3">
     <inertial>
       <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
       <mass value="1e-05"/>
@@ -1430,10 +1444,22 @@
     <axis xyz="-1. 0. 0."/>
     <origin xyz="0.0 0.0 0.0" rpy="1.57 0.0 0.0"/>
   </joint>
-  <joint name="shoulder_rot_r" type="revolute">
+  <!-- OpenSim sets shoulder1_r2_r = -elv_angle_r, then uses shoulder_rot
+       to keep the forearm level. The published shoulder_rot assumes this
+       joint moved with it. Leaving it at zero points the forearm down. -->
+  <joint name="shoulder1_r2_r" type="revolute">
     <dynamics damping="0.1" friction="0.0"/>
     <limit effort="30.0" velocity="1.0" lower="-3.14" upper="3.14"/>
     <parent link="RightShoulder_f2"/>
+    <child link="RightShoulder_f3"/>
+    <axis xyz="0. 1. 0."/>
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <mimic joint="elv_angle_r" multiplier="-1.0" offset="0.0"/>
+  </joint>
+  <joint name="shoulder_rot_r" type="revolute">
+    <dynamics damping="0.1" friction="0.0"/>
+    <limit effort="30.0" velocity="1.0" lower="-3.14" upper="3.14"/>
+    <parent link="RightShoulder_f3"/>
     <child link="RightUpperArm"/>
     <axis xyz="0. 1. 0."/>
     <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
@@ -1492,10 +1518,20 @@
     <axis xyz="1. 0. 0."/>
     <origin xyz="0.0 0.0 0.0" rpy="-1.57 0.0 0.0"/>
   </joint>
-  <joint name="shoulder_rot_l" type="revolute">
+  <!-- Same couple as the right arm: shoulder1_r2_l = -elv_angle_l. -->
+  <joint name="shoulder1_r2_l" type="revolute">
     <dynamics damping="0.1" friction="0.0"/>
     <limit effort="30.0" velocity="1.0" lower="-3.14" upper="3.14"/>
     <parent link="LeftShoulder_f2"/>
+    <child link="LeftShoulder_f3"/>
+    <axis xyz="0. 1. 0."/>
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <mimic joint="elv_angle_l" multiplier="-1.0" offset="0.0"/>
+  </joint>
+  <joint name="shoulder_rot_l" type="revolute">
+    <dynamics damping="0.1" friction="0.0"/>
+    <limit effort="30.0" velocity="1.0" lower="-3.14" upper="3.14"/>
+    <parent link="LeftShoulder_f3"/>
     <child link="LeftUpperArm"/>
     <axis xyz="0. 1. 0."/>
     <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>

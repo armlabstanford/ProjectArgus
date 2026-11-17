@@ -21,6 +21,8 @@
   <depend>nav_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_msgs</depend>
   <!-- If OpenSim is installed as a system/ROS-independent library,
        it does NOT go here unless you wrap it as a ROS package.
        It is typically handled via CMake only. -->

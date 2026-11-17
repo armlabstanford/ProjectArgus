@@ -1,0 +1,30 @@
+# Defaults for the argus_drift node (model, pose_source and period_s come from
+# the launch arguments). Angles in degrees, times in seconds.
+argus_drift:
+  ros__parameters:
+    calib_dir: ~/ProjectArgus/argus_wide_calib   # <module>-*-camchain-imucam.yaml per module
+    image_topic: cam0/image_raw                  # /<module>/<image_topic>
+    image_transport: raw                         # raw or compressed (<image_topic>/compressed)
+    anchor: ""                                   # module held fixed; empty = the one on the model's root body
+    capture_timeout_s: 1.0                       # how long the cameras are subscribed per capture
+    frames_per_module: 3
+    max_sync_s: 0.05                             # frames further than this from the set are left out
+    max_pose_gap_s: 0.15                         # tracked poses must bracket the frame time this closely
+    max_angular_speed_dps: 90.0                  # skip a module turning faster (blur)
+    still_dps: 30.0                              # a capture waits for every module to turn slower than this ...
+    max_wait_s: 8.0                              # ... for at most this long
+    search_deg: 45.0                             # matches are searched this far from where the belief puts them
+    group_gauges: true                           # correct within an arm whose cameras do not link to the root module
+    orb_features: 1500
+    ransac_px: 2.0
+    min_inliers: 25                              # a camera pair needs this many inlier matches ...
+    min_inlier_ratio: 0.30                       # ... and this share of its matches
+    reject_deg: 75.0                             # soft gate: thin-support pairs must agree this well
+    max_off_deg: 15.0                            # hard cap: reject any pair farther than this from the belief
+    pair_outlier_deg: 8.0                        # pairs disagreeing with the joint solution are dropped
+    baseline_samples: 2                          # captures after a zero averaged into the baseline
+    gain: 0.7                                    # share of the measured drift applied per capture
+    max_step_deg: 12.0                           # largest change per capture
+    yaw_only: true                               # correct heading only (about each module's world vertical)
+    world_up: [0.0, 0.0, 1.0]                    # vertical of the module worlds (OpenVINS and Mahony: Z up)
+    debug_dir: ""                                # set to save match images and drift_log.jsonl
