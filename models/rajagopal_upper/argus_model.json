@@ -1,0 +1,225 @@
+{
+  "_about": "Rajagopal 2015 full-body model for the upper-limb pipeline. Legs, lumbar, wrists, and unused ankle joints are locked; IK only moves the pelvis (root) and the arms.",
+  "name": "rajagopal_upper",
+  "model": "model.osim",
+  "modules": {
+    "argus2": "radius_r",
+    "argus4": "humerus_r",
+    "argus1": "radius_l",
+    "argus3": "humerus_l",
+    "argus0": "torso"
+  },
+  "_body_parents": "Kinematic parent of each instrumented body. Drift matching only compares modules on a parent-child edge (e.g. torso-humerus, humerus-radius), never torso-forearm or cross-body pairs.",
+  "body_parents": {
+    "humerus_r": "torso",
+    "radius_r": "humerus_r",
+    "humerus_l": "torso",
+    "radius_l": "humerus_l"
+  },
+  "_body_calibrations": "Bone-to-sensor offsets, extrinsic xyz Euler degrees; newest calibration_*.json in calibration_dir replaces these.",
+  "body_calibrations": {
+    "torso": [180.0, -90.0, -90.0],
+    "humerus_r": [0.0, 0.0, 90.0],
+    "radius_r": [0.0, 0.0, 90.0],
+    "humerus_l": [0.0, 180.0, 90.0],
+    "radius_l": [0.0, 180.0, 90.0]
+  },
+  "sensor_weights": {
+    "torso": 20.0,
+    "humerus_r": 5.0,
+    "radius_r": 1.0,
+    "humerus_l": 5.0,
+    "radius_l": 1.0
+  },
+  "joint_outputs": [
+    "pelvis_tilt", "pelvis_list", "pelvis_rotation",
+    "arm_flex_r", "arm_add_r", "arm_rot_r", "elbow_flex_r", "pro_sup_r",
+    "arm_flex_l", "arm_add_l", "arm_rot_l", "elbow_flex_l", "pro_sup_l"
+  ],
+  "lock": [
+    "hip_flexion_r", "hip_adduction_r", "hip_rotation_r",
+    "knee_angle_r", "ankle_angle_r", "subtalar_angle_r", "mtp_angle_r",
+    "hip_flexion_l", "hip_adduction_l", "hip_rotation_l",
+    "knee_angle_l", "ankle_angle_l", "subtalar_angle_l", "mtp_angle_l",
+    "lumbar_extension", "lumbar_bending", "lumbar_rotation",
+    "wrist_flex_r", "wrist_dev_r", "wrist_flex_l", "wrist_dev_l"
+  ],
+  "server": {
+    "elv_angle_prior_weight": 0.0,
+    "elv_angle_prior_deg": 0.0
+  },
+  "poses_file": "poses/rajagopal_upper/poses.json",
+  "calibration_dir": "poses/rajagopal_upper/calibrations",
+  "urdf": "human_rajagopal_upper.urdf",
+  "root": {
+    "body": "pelvis",
+    "angles": ["pelvis_tilt", "pelvis_list", "pelvis_rotation"],
+    "sequence": "ZXY",
+    "neutral_deg": [0.0, 0.0, 0.0],
+    "plot_tilt": ["pelvis_tilt", "pelvis_list"],
+    "plot_tilt_title": "pelvis tilt and list",
+    "plot_heading": "pelvis_rotation",
+    "plot_heading_title": "pelvis heading",
+    "components": [
+      ["pelvis_tilt_change", "trunk flexion"],
+      ["pelvis_list_change", "trunk lateral bend"],
+      ["pelvis_rotation_change", "trunk axial rotation"]
+    ],
+    "label": "trunk"
+  },
+  "pose_capture": {
+    "bone_angles": {
+      "torso": ["pelvis_tilt", "pelvis_list", "pelvis_rotation"],
+      "humerus_r": ["arm_flex_r", "arm_add_r", "arm_rot_r"],
+      "humerus_l": ["arm_flex_l", "arm_add_l", "arm_rot_l"],
+      "radius_r": ["elbow_flex_r", "pro_sup_r"],
+      "radius_l": ["elbow_flex_l", "pro_sup_l"]
+    }
+  },
+  "mocap": {
+    "static_description": "standing in OpenSim rest: legs straight, arms at the sides with slight abduction (-5 deg arm_add), elbows near 0, forearms at 75 deg pro/sup (palms flat against the thighs). Facing +X (pelvis_rotation 0).",
+    "_manual_scales": "When set, ScaleTool uses these anthropometrics instead of marker-pair measurements. height_m is feet-to-head; humerus_m is GH→elbow; forearm_m is elbow→wrist.",
+    "manual_scales": {
+      "height_m": 1.8288,
+      "ref_height_m": 1.6691,
+      "humerus_m": 0.31,
+      "forearm_m": 0.288
+    },
+    "_clusters": "Tracked clusters ride on that body. Acromion is not listed: it only locates the shoulder centers for scaling (scapula-mounted).",
+    "clusters": {
+      "torso": "torso",
+      "r_humerus": "humerus_r",
+      "r_forearm": "radius_r",
+      "l_humerus": "humerus_l",
+      "l_forearm": "radius_l"
+    },
+    "_cluster_groups": "Extra thorax-plate prefixes are treated as the torso cluster (Rajagopal has no scapula/clavicle bodies).",
+    "cluster_groups": {
+      "torso": [
+        "torso", "argus0", "thorax", "back",
+        "scapula_r", "scapula_l", "r_scapula", "l_scapula",
+        "clavicle_r", "clavicle_l", "r_clavicle", "l_clavicle"
+      ]
+    },
+    "lost_rms_m": 0,
+    "root_cluster": "torso",
+    "unlock": [
+      "pelvis_tx", "pelvis_ty", "pelvis_tz",
+      "pelvis_tilt", "pelvis_list", "pelvis_rotation",
+      "arm_flex_r", "arm_add_r", "arm_rot_r", "elbow_flex_r", "pro_sup_r",
+      "arm_flex_l", "arm_add_l", "arm_rot_l", "elbow_flex_l", "pro_sup_l"
+    ],
+    "lock": [
+      "hip_flexion_r", "hip_adduction_r", "hip_rotation_r",
+      "knee_angle_r", "ankle_angle_r", "subtalar_angle_r", "mtp_angle_r",
+      "hip_flexion_l", "hip_adduction_l", "hip_rotation_l",
+      "knee_angle_l", "ankle_angle_l", "subtalar_angle_l", "mtp_angle_l",
+      "lumbar_extension", "lumbar_bending", "lumbar_rotation",
+      "wrist_flex_r", "wrist_dev_r", "wrist_flex_l", "wrist_dev_l"
+    ],
+    "lock_others": true,
+    "cluster_unlocks": {},
+    "static_pose_deg": {
+      "arm_add_r": -5.0,
+      "arm_add_l": -5.0,
+      "elbow_flex_r": 0.0,
+      "elbow_flex_l": 0.0,
+      "pro_sup_r": 75.0,
+      "pro_sup_l": 75.0
+    },
+    "neutral_tasks": [
+      ["pelvis_tilt", "manual_value", 0.0, 1.0],
+      ["pelvis_list", "manual_value", 0.0, 1.0],
+      ["pelvis_rotation", "manual_value", 0.0, 1.0],
+      ["arm_flex_r", "default_value", 0.0, 1.0],
+      ["arm_flex_l", "default_value", 0.0, 1.0],
+      ["arm_add_r", "manual_value", -5.0, 1.0],
+      ["arm_add_l", "manual_value", -5.0, 1.0],
+      ["arm_rot_r", "default_value", 0.0, 1.0],
+      ["arm_rot_l", "default_value", 0.0, 1.0],
+      ["elbow_flex_r", "manual_value", 0.0, 1.0],
+      ["elbow_flex_l", "manual_value", 0.0, 1.0],
+      ["pro_sup_r", "manual_value", 75.0, 1.0],
+      ["pro_sup_l", "manual_value", 75.0, 1.0]
+    ],
+    "joint_centers": [
+      {"name": "RSJC", "parent": "r_acromion", "child": "r_humerus", "body": "humerus_r", "location": "origin"},
+      {"name": "REJC", "parent": "r_humerus", "child": "r_forearm", "body": "humerus_r", "location": {"joint": "elbow_r"}},
+      {"name": "LSJC", "parent": "l_acromion", "child": "l_humerus", "body": "humerus_l", "location": "origin"},
+      {"name": "LEJC", "parent": "l_humerus", "child": "l_forearm", "body": "humerus_l", "location": {"joint": "elbow_l"}}
+    ],
+    "scale": [
+      {"name": "arm_r", "markers": ["RSJC", "REJC"], "bodies": ["humerus_r", "ulna_r", "radius_r", "hand_r"]},
+      {"name": "arm_l", "markers": ["LSJC", "LEJC"], "bodies": ["humerus_l", "ulna_l", "radius_l", "hand_l"]},
+      {"name": "shoulder_width", "markers": ["RSJC", "LSJC"], "bodies": ["torso", "pelvis"]}
+    ],
+    "lengths_report": [["R shoulder to elbow", "RSJC", "REJC"], ["L shoulder to elbow", "LSJC", "LEJC"], ["shoulder width", "RSJC", "LSJC"]],
+    "scale_report": ["torso", "humerus_r", "humerus_l"],
+    "_marker_weights": "Torso is up-weighted so arm abduction cannot yaw the whole trunk (Rajagopal has no scapula).",
+    "marker_weights": {
+      "torso": 40.0,
+      "r_humerus": 1.0,
+      "l_humerus": 1.0,
+      "r_forearm": 1.0,
+      "l_forearm": 1.0
+    },
+    "_priors": "No pelvis-angle priors: trunk orientation is held by high torso marker weights only.",
+    "priors": {
+      "coordinates": [],
+      "deg": 0.0,
+      "weight": 0.0,
+      "gate_markers": 3
+    },
+    "_ik_solver": "Without pelvis priors or frame-to-frame damping (damping was biasing pro_sup). Accuracy 1e-3 so hard trials can assemble; 1e-4 is enough when marker RMS is ~15 mm. upperarm5 marker IK left pro_sup near the static 75 deg (RMS ~41 mm) even though cluster twist was present — use mocap_ik.py --orientation for that trial (see upperarm5_ik_orientation.mot).",
+    "ik_accuracy": 1e-3,
+    "ik_damping": 0.0,
+    "presence_groups": {
+      "r_humerus": "(arm_flex|arm_add|arm_rot|elbow_flex|pro_sup)_r$",
+      "r_forearm": "(elbow_flex|pro_sup)_r$",
+      "l_humerus": "(arm_flex|arm_add|arm_rot|elbow_flex|pro_sup)_l$",
+      "l_forearm": "(elbow_flex|pro_sup)_l$"
+    }
+  },
+  "analysis": {
+    "bones": ["torso", "humerus_r", "radius_r", "humerus_l", "radius_l"],
+    "joints": [
+      ["arm_flex", "shoulder flexion"],
+      ["arm_add", "shoulder adduction"],
+      ["arm_rot", "shoulder rotation"],
+      ["elbow_flex", "elbow flexion"],
+      ["pro_sup", "pronation"]
+    ],
+    "masks": {},
+    "align_joints": ["arm_flex_r", "arm_flex_l", "elbow_flex_r", "elbow_flex_l"],
+    "caption": [["arm_flex_r", "R shldr"], ["elbow_flex_r", "R elbow"], ["arm_flex_l", "L shldr"], ["elbow_flex_l", "L elbow"]],
+    "table_groups": [
+      ["trunk", "Trunk\\\\Orientation", null],
+      ["flex", "Shoulder\\\\Flexion", "arm_flex"],
+      ["add", "Shoulder\\\\Adduction", "arm_add"],
+      ["rotation", "Shoulder\\\\Rotation", "arm_rot"],
+      ["elbow", "Elbow\\\\Flexion", "elbow_flex"],
+      ["pronation", "Wrist\\\\Pronation", "pro_sup"]
+    ],
+    "activity_features": ["arm_flex_r", "arm_flex_l", "elbow_flex_r", "elbow_flex_l",
+                          "arm_rot_r", "arm_rot_l", "pro_sup_r", "pro_sup_l"],
+    "activity_plot_joints": [["arm_flex", "shoulder flexion"], ["elbow_flex", "elbow flexion"], ["arm_rot", "shoulder rotation"], ["pro_sup", "pronation"], ["arm_add", "shoulder adduction"]],
+    "activity_plane_features": {},
+    "skeleton": {
+      "focus_link": "UpperTrunk",
+      "hide_legs": true,
+      "segment_end": {
+        "RightUpperArm": "RightForeArm_f1",
+        "RightForeArm": "RightHand_f1",
+        "LeftUpperArm": "LeftForeArm_f1",
+        "LeftForeArm": "LeftHand_f1"
+      },
+      "links": {
+        "torso": ["UpperTrunk", [[1, 0, 0], [0, 0, -1], [0, 1, 0]]],
+        "humerus_r": ["RightUpperArm", [[1, 0, 0], [0, 1, 0], [0, 0, 1]]],
+        "radius_r": ["RightForeArm", [[1, 0, 0], [0, 1, 0], [0, 0, 1]]],
+        "humerus_l": ["LeftUpperArm", [[1, 0, 0], [0, -1, 0], [0, 0, -1]]],
+        "radius_l": ["LeftForeArm", [[1, 0, 0], [0, -1, 0], [0, 0, -1]]]
+      }
+    }
+  }
+}

@@ -681,6 +681,7 @@ private:
       sh.have = false;
     }
     drift_rotations_.clear();
+    drift_body_fixed_.clear();
     zero_stamp_ = this->get_clock()->now();
     publish_drift_reference();
   }
@@ -709,6 +710,8 @@ private:
       if (drift != drift_rotations_.end()) {
         w = SimTK::Quaternion(drift->second);
       }
+      const bool body = drift_body_fixed_.count(segment_name) && drift_body_fixed_.at(segment_name);
+      item.header.frame_id = body ? "body" : "ground";
       item.child_frame_id = segment_module_[segment_name] + "/drift";
       item.transform.rotation.w = w[0];
       item.transform.rotation.x = w[1];
@@ -720,9 +723,10 @@ private:
   }
 
   /**
-   * @brief Takes drift corrections (rotations in ground, one per module)
-   * from the argus_drift node. Corrections made for an earlier zero are
-   * ignored.
+   * @brief Takes drift corrections from the argus_drift node.
+   * frame_id "ground": W left-multiplies R_GB. frame_id "body": Δ
+   * right-multiplies R_cur (floating groups). Corrections made for an
+   * earlier zero are ignored.
    */
   void on_drift_correction(const tf2_msgs::msg::TFMessage& msg)
   {
@@ -750,6 +754,7 @@ private:
       }
       const SimTK::Rotation w(SimTK::Quaternion(q.w / norm, q.x / norm, q.y / norm, q.z / norm));
       drift_rotations_[segment->second] = w;
+      drift_body_fixed_[segment->second] = (item.header.frame_id == "body");
       char text[64];
       std::snprintf(text, sizeof(text), " %s %.2f deg", item.child_frame_id.c_str(),
         SimTK::convertRadiansToDegrees(w.convertRotationToAngleAxis()[0]));
@@ -818,7 +823,12 @@ private:
       SimTK::Rotation R_rel = R_ref * R_cur * body_calibration_rotations[segment_name];
       const auto drift = drift_rotations_.find(segment_name);
       if (drift != drift_rotations_.end()) {
-        R_rel = drift->second * R_rel;
+        const bool body = drift_body_fixed_.count(segment_name) && drift_body_fixed_.at(segment_name);
+        if (body) {
+          R_rel = R_ref * R_cur * drift->second * body_calibration_rotations[segment_name];
+        } else {
+          R_rel = drift->second * R_rel;
+        }
       }
 
       dataRow[i] = R_rel;
@@ -1487,7 +1497,8 @@ private:
   rclcpp::TimerBase::SharedPtr debug_timer_; ///< Drives publish_debug().
 
   // Optional drift correction (argus_drift node)
-  std::unordered_map<std::string, SimTK::Rotation> drift_rotations_; ///< Per segment, in ground; empty = none.
+  std::unordered_map<std::string, SimTK::Rotation> drift_rotations_; ///< Per segment, ground W or body Δ.
+  std::unordered_map<std::string, bool> drift_body_fixed_; ///< True if that correction is IMU-body Δ.
   std::unordered_map<std::string, std::string> segment_module_; ///< Segment -> module (topic alias, e.g. argus1).
   std::unordered_map<std::string, std::string> module_segment_; ///< Module -> segment.
   builtin_interfaces::msg::Time zero_stamp_; ///< Time of the last zero; corrections must carry it.

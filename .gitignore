@@ -208,13 +208,53 @@ marimo/_lsp/
 __marimo__/
 
 
-install/*
-build/*
-log/*
-bags/*
-data/*
+# Colcon, bags, and scratch
+install/
+build/
+log/
+bags/
+tmp/
+tmp.sh
+symlink_install_manifest.txt
 
 # One computer's Wi-Fi interface names and uplink SSID.
 argus.local.conf
 
-tmp/*
+# Session data, mocap, and comparison outputs (keep on disk; do not commit)
+data/
+c3d_data/
+comparisons/
+poses/**
+!poses/poses.json
+!poses/rajagopal_upper/
+!poses/rajagopal_upper/poses.json
+!poses/images/
+!poses/images/**
+argus_wide_calib/
+*.mp4
+*.html
+
+# Offline analysis, mocap IK, plots, and renders — not needed to run live
+mocap_ik/
+activity_tasks*.json
+plot_*.py
+render_*.py
+compare_*.py
+drift_compare.py
+drift_offline.py
+mahony_offline.py
+report_tables.py
+eval_trial_rmse.py
+segment_activities.py
+view_orientations.py
+sensor_placement_view.py
+sensor_placement_edit.py
+estimate_mounts.py
+pose_capture.py
+estimator_config.yaml
+scripts/offline_ik.py
+scripts/merge_bags.py
+scripts/tracking/replay_joints.sh
+scripts/tracking/restamp_tracked.py
+scripts/tracking/zero_at_stamp.py
+scripts/tracking/bag_health.sh

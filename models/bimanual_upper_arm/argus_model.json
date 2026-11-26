@@ -1,0 +1,179 @@
+{
+  "_about": "Per-model settings read by the argus_server launch file, pose_capture.py, mocap_ik.py and the analysis scripts. Paths are relative to the repo root.",
+  "name": "bimanual_upper_arm",
+  "model": "model.osim",
+  "modules": {
+    "argus2": "radius_r",
+    "argus4": "humerus_r",
+    "argus1": "radius_l",
+    "argus3": "humerus_l",
+    "argus0": "thorax"
+  },
+  "_body_calibrations": "Bone-to-sensor offsets, extrinsic xyz Euler degrees (R.from_euler('xyz', angles, degrees=True)); the newest calibration_*.json in calibration_dir replaces these.",
+  "body_calibrations": {
+    "thorax": [180.0, -90.0, -90.0],
+    "humerus_r": [0.0, 0.0, 90.0],
+    "radius_r": [0.0, 0.0, 90.0],
+    "humerus_l": [0.0, 180.0, 90.0],
+    "radius_l": [0.0, 180.0, 90.0]
+  },
+  "sensor_weights": {
+    "thorax": 20.0,
+    "humerus_r": 5.0,
+    "radius_r": 1.0,
+    "humerus_l": 5.0,
+    "radius_l": 1.0
+  },
+  "joint_outputs": [
+    "r_x", "r_y", "r_z",
+    "elv_angle_r", "shoulder_elv_r", "shoulder1_r2_r", "shoulder_rot_r", "elbow_flexion_r", "pro_sup_r", "deviation_r", "flexion_r",
+    "elv_angle_l", "shoulder_elv_l", "shoulder1_r2_l", "shoulder_rot_l", "elbow_flexion_l", "pro_sup_l", "deviation_l", "flexion_l"
+  ],
+  "_server": "Weak pull of elv_angle_r/l toward elv_angle_prior_deg; keeps the plane of elevation off its limit while the arm hangs (1% of an arm's orientation pull).",
+  "server": {
+    "elv_angle_prior_weight": 0.002,
+    "elv_angle_prior_deg": 0.0
+  },
+  "poses_file": "poses/poses.json",
+  "calibration_dir": "poses/calibrations",
+  "urdf": "human.urdf",
+  "root": {
+    "_about": "Root (ground) joint: its angles in the joint's rotation order, that order as a scipy intrinsic sequence, and its value in the neutral (zero) pose.",
+    "body": "thorax",
+    "angles": ["r_x", "r_y", "r_z"],
+    "sequence": "XYZ",
+    "neutral_deg": [0.0, -90.0, 0.0],
+    "plot_tilt": ["r_x", "r_z"],
+    "plot_tilt_title": "thorax tilt (r_x, r_z: near gimbal lock while r_y is near -90)",
+    "plot_heading": "r_y",
+    "plot_heading_title": "thorax heading (r_y)",
+    "components": [
+      ["trunk_flexion", "trunk flexion"],
+      ["trunk_lateral_bend", "trunk lateral bend"],
+      ["trunk_axial_rotation", "trunk axial rotation"]
+    ],
+    "label": "trunk"
+  },
+  "pose_capture": {
+    "_about": "Which coordinates orient each bone (a posture uses a bone only if it sets these).",
+    "bone_angles": {
+      "thorax": ["r_x", "r_y", "r_z"],
+      "humerus_r": ["elv_angle_r", "shoulder_elv_r", "shoulder_rot_r"],
+      "humerus_l": ["elv_angle_l", "shoulder_elv_l", "shoulder_rot_l"],
+      "radius_r": ["elbow_flexion_r", "pro_sup_r"],
+      "radius_l": ["elbow_flexion_l", "pro_sup_l"]
+    }
+  },
+  "mocap": {
+    "_about": "mocap_ik.py recipe. Marker clusters are named <cluster>_<n>. Clusters in 'clusters' are tracked by IK on that body; other clusters (the acromions) only locate joint centers.",
+    "static_description": "standing in the OpenSim-typical rest pose: arms at the sides, ~5 deg shoulder elevation, elbows near 0, forearms ~5 deg pronated",
+    "clusters": {
+      "torso": "thorax",
+      "r_humerus": "humerus_r",
+      "r_forearm": "radius_r",
+      "l_humerus": "humerus_l",
+      "l_forearm": "radius_l"
+    },
+    "_root_cluster": "Frames without this cluster get no joint angles; the priors only act while at least gate_markers of its markers are visible.",
+    "root_cluster": "torso",
+    "unlock": ["t_x", "t_y", "t_z"],
+    "lock": ["deviation_r", "flexion_r", "deviation_l", "flexion_l"],
+    "cluster_unlocks": {},
+    "_static_pose_deg": "Angles the static trial cannot observe (no wrist markers); also the default pose of the session's model copy.",
+    "static_pose_deg": {
+      "shoulder_elv_r": 5.0,
+      "shoulder_elv_l": 5.0,
+      "elbow_flexion_r": 0.0,
+      "elbow_flexion_l": 0.0,
+      "pro_sup_r": 5.0,
+      "pro_sup_l": 5.0
+    },
+    "_neutral_tasks": "Coordinate tasks for placing the markers in the static pose: [name, manual_value|default_value, degrees, weight].",
+    "neutral_tasks": [
+      ["r_x", "manual_value", 0.0, 1.0],
+      ["r_z", "manual_value", 0.0, 1.0],
+      ["shoulder_elv_r", "manual_value", 5.0, 1.0],
+      ["shoulder_elv_l", "manual_value", 5.0, 1.0],
+      ["elbow_flexion_r", "manual_value", 0.0, 1.0],
+      ["elbow_flexion_l", "manual_value", 0.0, 1.0],
+      ["pro_sup_r", "manual_value", 5.0, 1.0],
+      ["pro_sup_l", "manual_value", 5.0, 1.0],
+      ["shoulder_rot_r", "default_value", 0.0, 1.0],
+      ["shoulder_rot_l", "default_value", 0.0, 1.0],
+      ["elv_angle_r", "default_value", 0.0, 0.1],
+      ["elv_angle_l", "default_value", 0.0, 0.1]
+    ],
+    "_joint_centers": "Fitted functionally (SCoRE) between two clusters; a model marker of that name sits on 'body' at its origin or at a joint's offset frame on it.",
+    "joint_centers": [
+      {"name": "RSJC", "parent": "r_acromion", "child": "r_humerus", "body": "humerus_r", "location": "origin"},
+      {"name": "REJC", "parent": "r_humerus", "child": "r_forearm", "body": "humerus_r", "location": {"joint": "elbow_r"}},
+      {"name": "LSJC", "parent": "l_acromion", "child": "l_humerus", "body": "humerus_l", "location": "origin"},
+      {"name": "LEJC", "parent": "l_humerus", "child": "l_forearm", "body": "humerus_l", "location": {"joint": "elbow_l"}}
+    ],
+    "_scale": "ScaleTool measurements: each scales its bodies by the distance between two joint centers. No markers reach past the forearm, so the forearm and hand take the upper arm factor.",
+    "scale": [
+      {"name": "arm_r", "markers": ["RSJC", "REJC"], "bodies": ["humerus_r", "ulna_r", "radius_r", "proximal_row_r", "hand_r"]},
+      {"name": "arm_l", "markers": ["LSJC", "LEJC"], "bodies": ["humerus_l", "ulna_l", "radius_l", "proximal_row_l", "hand_l"]},
+      {"name": "shoulder_width", "markers": ["RSJC", "LSJC"],
+       "bodies": ["thorax", "clavicle_r", "clavphant_r", "scapula_r", "scapphant_r", "humphant_r", "humphant1_r",
+                  "clavicle_l", "clavphant_l", "scapula_l", "scapphant_l", "humphant_l", "humphant1_l"]}
+    ],
+    "lengths_report": [["R shoulder to elbow", "RSJC", "REJC"], ["L shoulder to elbow", "LSJC", "LEJC"], ["shoulder width", "RSJC", "LSJC"]],
+    "scale_report": ["thorax", "humerus_r", "humerus_l"],
+    "_priors": "Weak marker-IK pull of these coordinates toward 'deg' (the plane of elevation drifts to its limit with the arm hanging); 1% of an arm's marker pull.",
+    "priors": {"coordinates": ["elv_angle_r", "elv_angle_l"], "deg": 0.0, "weight": 0.0003, "gate_markers": 3},
+    "_presence_groups": "Coordinates left out (nan) where the cluster that observes them has no pose.",
+    "presence_groups": {
+      "r_humerus": "(elv_angle|shoulder_elv|shoulder_rot|shoulder1_r2|sternoclavicular_r\\d|unrotscap_r\\d|acromioclavicular_r\\d|unrothum_r\\d|elbow_flexion|pro_sup)_r$",
+      "r_forearm": "(elbow_flexion|pro_sup)_r$",
+      "l_humerus": "(elv_angle|shoulder_elv|shoulder_rot|shoulder1_r2|sternoclavicular_r\\d|unrotscap_r\\d|acromioclavicular_r\\d|unrothum_r\\d|elbow_flexion|pro_sup)_l$",
+      "l_forearm": "(elbow_flexion|pro_sup)_l$"
+    }
+  },
+  "analysis": {
+    "bones": ["thorax", "humerus_r", "radius_r", "humerus_l", "radius_l"],
+    "joints": [
+      ["elv_angle", "plane of elevation"],
+      ["shoulder_elv", "shoulder elevation"],
+      ["shoulder_rot", "shoulder rotation"],
+      ["elbow_flexion", "elbow flexion"],
+      ["pro_sup", "pronation"]
+    ],
+    "_masks": "A joint is only compared while another joint is above min_deg (plane of elevation is undefined with the arm down).",
+    "masks": {
+      "elv_angle": {"joint": "shoulder_elv", "min_deg": 30.0}
+    },
+    "align_joints": ["shoulder_elv_r", "shoulder_elv_l", "elbow_flexion_r", "elbow_flexion_l"],
+    "caption": [["shoulder_elv_r", "R elev"], ["elbow_flexion_r", "R elbow"], ["shoulder_elv_l", "L elev"], ["elbow_flexion_l", "L elbow"]],
+    "table_groups": [
+      ["trunk", "Trunk\\\\Orientation", null],
+      ["plane", "Shoulder Plane of\\\\Elevation", "elv_angle"],
+      ["elevation", "Shoulder\\\\Elevation", "shoulder_elv"],
+      ["rotation", "Shoulder\\\\Rotation", "shoulder_rot"],
+      ["elbow", "Elbow\\\\Flexion", "elbow_flexion"],
+      ["pronation", "Wrist\\\\Pronation", "pro_sup"]
+    ],
+    "activity_features": ["shoulder_elv_r", "shoulder_elv_l", "elbow_flexion_r", "elbow_flexion_l",
+                          "shoulder_rot_r", "shoulder_rot_l", "pro_sup_r", "pro_sup_l"],
+    "activity_plot_joints": [["shoulder_elv", "shoulder elevation"], ["elbow_flexion", "elbow flexion"], ["shoulder_rot", "shoulder rotation"], ["pro_sup", "pronation"], ["elv_angle", "plane of elevation"]],
+    "activity_plane_features": {"elv_angle_r": "shoulder_elv_r", "elv_angle_l": "shoulder_elv_l"},
+    "skeleton": {
+      "_about": "URDF link for each OpenSim body, and the body's x/y/z axes as columns in that link's frame.",
+      "focus_link": "UpperTrunk",
+      "hide_legs": true,
+      "segment_end": {
+        "RightUpperArm": "RightForeArm_f1",
+        "RightForeArm": "RightHand_f1",
+        "LeftUpperArm": "LeftForeArm_f1",
+        "LeftForeArm": "LeftHand_f1"
+      },
+      "links": {
+        "thorax": ["UpperTrunk", [[1, 0, 0], [0, 0, -1], [0, 1, 0]]],
+        "humerus_r": ["RightUpperArm", [[1, 0, 0], [0, 1, 0], [0, 0, 1]]],
+        "radius_r": ["RightForeArm", [[1, 0, 0], [0, 1, 0], [0, 0, 1]]],
+        "humerus_l": ["LeftUpperArm", [[1, 0, 0], [0, -1, 0], [0, 0, -1]]],
+        "radius_l": ["LeftForeArm", [[1, 0, 0], [0, -1, 0], [0, 0, -1]]]
+      }
+    }
+  }
+}

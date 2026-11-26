@@ -39,7 +39,7 @@ from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
 
 from argus_drift import vision
-from argus_drift.estimator import DriftEstimator, Settings, adjacent_module_pairs, pose_from_samples
+from argus_drift.estimator import DriftEstimator, Settings, pose_from_samples
 
 POSE_SUFFIX = {"openvins": "odomimu_throttled", "vio": "odomimu_throttled", "odomimu": "odomimu_throttled",
                "mahoney": "mahoney_odomimu", "mahony": "mahoney_odomimu"}
@@ -86,13 +86,13 @@ class DriftNode(Node):
             min_inliers=int(p("min_inliers", 25).value),
             min_ratio=float(p("min_inlier_ratio", 0.30).value),
             gate_deg=float(p("reject_deg", 75.0).value),
-            max_off_deg=float(p("max_off_deg", 15.0).value),
+            max_off_deg=float(p("max_off_deg", 180.0).value),
             outlier_deg=float(p("pair_outlier_deg", 8.0).value),
             baseline_samples=int(p("baseline_samples", 2).value),
             gain=float(p("gain", 0.7).value),
-            max_step=float(p("max_step_deg", 12.0).value),
-            yaw_only=bool(p("yaw_only", True).value),
+            max_step=float(p("max_step_deg", 180.0).value),
             world_up=tuple(p("world_up", [0.0, 0.0, 1.0]).value),
+            yaw_only=False,
         )
         debug_dir = p("debug_dir", "").value.strip()
         self.debug_dir = Path(debug_dir).expanduser() if debug_dir else None
@@ -120,19 +120,20 @@ class DriftNode(Node):
                 continue
             self.cameras[module] = vision.load_camera(path, module)
         priority = {m: config["sensor_weights"].get(body, 1.0) for m, body in config["modules"].items()}
-        adjacent = adjacent_module_pairs(config["modules"], config.get("body_parents"))
         self.estimator = DriftEstimator(
-            self.cameras, self.anchor, settings, priority, adjacent_pairs=adjacent or None)
+            self.cameras, self.anchor, settings, priority, adjacent_pairs=None)
         self.get_logger().info(
             f"model {config['name']}, anchor {self.anchor} ({config['modules'].get(self.anchor)}), "
-            f"poses from {POSE_SUFFIX[pose_source]}, cameras {sorted(self.cameras)}, every {self.period:g} s"
-            + (f", adjacent {sorted(tuple(sorted(p)) for p in adjacent)}" if adjacent else ""))
+            f"poses from {POSE_SUFFIX[pose_source]}, cameras {sorted(self.cameras)}, "
+            f"all-pairs full SO(3), max_off={settings.max_off_deg:g}, max_step={settings.max_step:g}, "
+            f"every {self.period:g} s")
 
         self.lock = threading.Lock()
         self.poses = {m: deque(maxlen=4000) for m in self.modules}
         self.epoch = None           # server zero stamp (builtin_interfaces/Time)
         self.reference = {}         # module -> R_ref
-        self.server_drift = {}      # module -> W the server applies
+        self.server_drift = {}      # module -> W (ground) or Δ (body) the server applies
+        self.body_fixed = {}        # module -> True if server_drift is IMU-body Δ
         self.baseline = {}          # module -> list of B samples, then the mean
         self.busy = False
         self.cycle = 0
@@ -177,7 +178,9 @@ class DriftNode(Node):
                 epoch = item.header.stamp
                 name = item.child_frame_id
                 if name.endswith("/drift"):
-                    drift[name[:-len("/drift")]] = from_quat_msg(item.transform.rotation)
+                    module = name[:-len("/drift")]
+                    drift[module] = from_quat_msg(item.transform.rotation)
+                    self.body_fixed[module] = item.header.frame_id == "body"
                 else:
                     reference[name] = from_quat_msg(item.transform.rotation)
             if epoch is None:
@@ -186,6 +189,7 @@ class DriftNode(Node):
             self.epoch, self.reference, self.server_drift = epoch, reference, drift
             if new_zero:
                 self.baseline = {}
+                self.body_fixed = {}
                 self.zero_capture_due = time.monotonic() + 1.0
         if new_zero:
             self.get_logger().info("server zeroed: new drift baseline; first capture in 1 s")
@@ -289,18 +293,20 @@ class DriftNode(Node):
             if epoch is None or self.epoch is None or Time.from_msg(epoch) != Time.from_msg(self.epoch):
                 return
             baseline = dict(self.baseline)
+            flags = dict(self.body_fixed)
         result = self.estimator.cycle(images, self.pose_at, reference, server_drift, baseline,
-                                      draw=self.debug_dir is not None)
+                                      draw=self.debug_dir is not None, body_fixed=flags)
         with self.lock:
             if self.epoch is None or Time.from_msg(epoch) != Time.from_msg(self.epoch):
                 return      # zeroed again meanwhile; this cycle belongs to the old zero
             self.baseline = result.baseline
+            self.body_fixed.update(result.body_fixed)
         if result.corrections:
             out = TFMessage()
             for module, rotation in result.corrections.items():
                 item = TransformStamped()
                 item.header.stamp = epoch
-                item.header.frame_id = "ground"
+                item.header.frame_id = "body" if result.body_fixed.get(module) else "ground"
                 item.child_frame_id = module
                 to_quat_msg(rotation, item.transform.rotation)
                 out.transforms.append(item)

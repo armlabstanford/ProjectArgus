@@ -1,0 +1,24 @@
+{
+  "units": "degrees",
+  "_about": "Postures for Rajagopal upper-limb tracking (pose_capture.py --model rajagopal_upper). Legs and lumbar stay locked at 0.",
+  "poses": [
+    {
+      "name": "neutral",
+      "joint_angles": {
+        "pelvis_tilt": 0.0,
+        "pelvis_list": 0.0,
+        "pelvis_rotation": 0.0,
+        "arm_flex_r": 0.0,
+        "arm_add_r": -5.0,
+        "arm_rot_r": 0.0,
+        "elbow_flex_r": 0.0,
+        "pro_sup_r": 75.0,
+        "arm_flex_l": 0.0,
+        "arm_add_l": -5.0,
+        "arm_rot_l": 0.0,
+        "elbow_flex_l": 0.0,
+        "pro_sup_l": 75.0
+      }
+    }
+  ]
+}

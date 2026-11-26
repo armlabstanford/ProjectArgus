@@ -1,0 +1,60 @@
+{
+  "units": "degrees",
+  "poses": [
+    {
+      "name": "neutral",
+      "image": "images/neutral.png",
+      "joint_angles": {
+        "r_x": 0.0,
+        "r_y": -90.0,
+        "r_z": 0.0,
+        "elv_angle_r": 0.0,
+        "shoulder_elv_r": 5.0,
+        "shoulder_rot_r": 0.0,
+        "elbow_flexion_r": 0.0,
+        "pro_sup_r": 5.0,
+        "deviation_r": 0.0,
+        "flexion_r": 0.0,
+        "elv_angle_l": 0.0,
+        "shoulder_elv_l": 5.0,
+        "shoulder_rot_l": 0.0,
+        "elbow_flexion_l": 0.0,
+        "pro_sup_l": 5.0,
+        "deviation_l": 0.0,
+        "flexion_l": 0.0
+      }
+    },
+    {
+      "name": "bow",
+      "image": "images/bow.png",
+      "joint_angles": {
+        "r_x": 90.0,
+        "r_y": -90.0,
+        "r_z": 0.0
+      }
+    },
+    {
+      "name": "planar-u",
+      "image": "images/planar-u.png",
+      "joint_angles": {
+        "r_x": 0.0,
+        "r_y": -90.0,
+        "r_z": 0.0,
+        "elv_angle_r": 0.0,
+        "shoulder_elv_r": 90.0,
+        "shoulder_rot_r": 0.0,
+        "elbow_flexion_r": 90.0,
+        "pro_sup_r": 5.0,
+        "deviation_r": 0.0,
+        "flexion_r": 0.0,
+        "elv_angle_l": 0.0,
+        "shoulder_elv_l": 90.0,
+        "shoulder_rot_l": 0.0,
+        "elbow_flexion_l": 90.0,
+        "pro_sup_l": 5.0,
+        "deviation_l": 0.0,
+        "flexion_l": 0.0
+      }
+    }
+  ]
+}

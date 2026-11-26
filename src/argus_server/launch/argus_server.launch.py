@@ -55,12 +55,17 @@ def generate_launch_description():
         body_calibrations_param = [f"{body}:{','.join(map(str, value))}"
                                    for body, value in config['body_calibrations'].items()]
         sensor_weights_param = [f"{body}:{value}" for body, value in config['sensor_weights'].items()]
+        weights_override = LaunchConfiguration('sensor_weights').perform(context).strip()
+        if weights_override:
+            sensor_weights_param = [p.strip() for p in weights_override.split('|') if p.strip()]
         topic_translations_param = [f"{alias}:{body}" for alias, body in modules.items()]
         server = config.get('server', {})
 
         zero_pose_file = LaunchConfiguration('zero_pose_file').perform(context).strip() \
             or os.path.join(repo, config['poses_file'])
         zero_pose = LaunchConfiguration('zero_pose').perform(context).strip() or 'neutral'
+        calib_dir = LaunchConfiguration('calibration_dir').perform(context).strip() \
+            or os.path.join(repo, config['calibration_dir'])
         nodes = []
         if LaunchConfiguration('drift_correction').perform(context).strip().lower() in ('true', '1', 'yes'):
             from ament_index_python.packages import get_package_share_directory
@@ -87,7 +92,7 @@ def generate_launch_description():
                     'topic_names': topic_list,
                     'joint_outputs': config['joint_outputs'],
                     'body_calibrations': body_calibrations_param,
-                    'calibration_dir': os.path.join(repo, config['calibration_dir']),
+                    'calibration_dir': calib_dir,
                     'zero_pose_file': zero_pose_file,
                     'zero_pose': zero_pose,
                     'sensor_weights': sensor_weights_param,
@@ -131,6 +136,16 @@ def generate_launch_description():
             'drift_period_s',
             default_value='5.0',
             description='seconds between drift correction captures',
+        ),
+        DeclareLaunchArgument(
+            'sensor_weights',
+            default_value='',
+            description='optional body:weight list separated by | (overrides argus_model.json)',
+        ),
+        DeclareLaunchArgument(
+            'calibration_dir',
+            default_value='',
+            description='folder of calibration_*.json; empty uses the model calibration_dir (newest file wins)',
         ),
         OpaqueFunction(function=make_node),
     ])

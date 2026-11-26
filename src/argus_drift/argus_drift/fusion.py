@@ -14,6 +14,12 @@ and zero-pose errors), which is not drift. So right after a zero each module's
 baseline B_m = W_m G_m^-1 is recorded (W_m the correction the server applies
 then), and the correction wanted later is W_m = B_m G_m: only the change
 since the zero.
+
+Modules whose cameras connect to the anchor keep W in ground (left-multiply).
+A floating group (no path to the anchor) only observes relative rotations;
+holding that G as a world-fixed W ratchets into distal joints as the limb
+moves. Those modules store a body-fixed Δ = R_imu^-1 G R_imu (right-multiply
+on R_cur) so the leftover stays in the IMU, not in ground.
 """
 
 from collections import deque
@@ -121,6 +127,11 @@ def solve_groups(anchor, priority, P, edges, outlier_deg=3.0):
             gauge[module] = local
         kept += group_kept
     return G, gauge, kept
+
+
+def as_body(G, R_imu):
+    """Ground-frame G expressed in the IMU: Δ = R_imu^{-1} G R_imu."""
+    return R_imu.inv() * G * R_imu
 
 
 def twist(rotation, axis):

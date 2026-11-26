@@ -1,0 +1,187 @@
+{
+  "_about": "Rajagopal 2015 full-body model for the lower-limb pipeline. Arms, wrists, and lumbar are locked; Qualisys pelvis_* and back plates are not tracked. The waist is argus0 only. IK moves the pelvis, hips, knees, and ankles. argus0 outweighs the feet so the trunk is not pulled by the shoes.",
+  "name": "rajagopal_lower",
+  "model": "model.osim",
+  "modules": {
+    "argus0": "pelvis",
+    "argus3": "femur_r",
+    "argus2": "tibia_r",
+    "argus4": "femur_l",
+    "argus1": "tibia_l"
+  },
+  "_body_parents": "Kinematic parent of each instrumented body. Drift matching only compares modules on a parent-child edge.",
+  "body_parents": {
+    "femur_r": "pelvis",
+    "tibia_r": "femur_r",
+    "femur_l": "pelvis",
+    "tibia_l": "femur_l"
+  },
+  "body_calibrations": {
+    "pelvis": [180.0, -90.0, -90.0],
+    "femur_r": [0.0, 0.0, 90.0],
+    "tibia_r": [0.0, 0.0, 90.0],
+    "femur_l": [0.0, 180.0, 90.0],
+    "tibia_l": [0.0, 180.0, 90.0]
+  },
+  "sensor_weights": {
+    "pelvis": 20.0,
+    "femur_r": 5.0,
+    "tibia_r": 1.0,
+    "femur_l": 5.0,
+    "tibia_l": 1.0,
+    "torso": 5.0
+  },
+  "joint_outputs": [
+    "pelvis_tilt", "pelvis_list", "pelvis_rotation",
+    "hip_flexion_r", "hip_adduction_r", "hip_rotation_r", "knee_angle_r", "ankle_angle_r",
+    "hip_flexion_l", "hip_adduction_l", "hip_rotation_l", "knee_angle_l", "ankle_angle_l",
+    "lumbar_extension", "lumbar_bending", "lumbar_rotation"
+  ],
+  "lock": [
+    "arm_flex_r", "arm_add_r", "arm_rot_r", "elbow_flex_r", "pro_sup_r", "wrist_flex_r", "wrist_dev_r",
+    "arm_flex_l", "arm_add_l", "arm_rot_l", "elbow_flex_l", "pro_sup_l", "wrist_flex_l", "wrist_dev_l",
+    "ankle_angle_r", "ankle_angle_l",
+    "subtalar_angle_r", "mtp_angle_r", "subtalar_angle_l", "mtp_angle_l",
+    "lumbar_extension", "lumbar_bending", "lumbar_rotation"
+  ],
+  "server": {
+    "elv_angle_prior_weight": 0.0,
+    "elv_angle_prior_deg": 0.0
+  },
+  "poses_file": "poses/rajagopal_lower/poses.json",
+  "calibration_dir": "poses/rajagopal_lower/calibrations",
+  "urdf": "human_rajagopal_lower.urdf",
+  "root": {
+    "body": "pelvis",
+    "angles": ["pelvis_tilt", "pelvis_list", "pelvis_rotation"],
+    "sequence": "ZXY",
+    "neutral_deg": [0.0, 0.0, 0.0],
+    "plot_tilt": ["pelvis_tilt", "pelvis_list"],
+    "plot_tilt_title": "pelvis tilt and list",
+    "plot_heading": "pelvis_rotation",
+    "plot_heading_title": "pelvis heading (pelvis_rotation)",
+    "components": [
+      ["pelvis_tilt_change", "pelvis tilt"],
+      ["pelvis_list_change", "pelvis list"],
+      ["pelvis_rotation_change", "pelvis rotation"]
+    ],
+    "label": "pelvis"
+  },
+  "pose_capture": {
+    "bone_angles": {
+      "pelvis": ["pelvis_tilt", "pelvis_list", "pelvis_rotation"],
+      "femur_r": ["hip_flexion_r", "hip_adduction_r", "hip_rotation_r"],
+      "femur_l": ["hip_flexion_l", "hip_adduction_l", "hip_rotation_l"],
+      "tibia_r": ["knee_angle_r"],
+      "tibia_l": ["knee_angle_l"]
+    }
+  },
+  "mocap": {
+    "static_description": "standing upright with the legs straight, feet hip-width apart, toes forward, arms at the sides",
+    "clusters": {
+      "argus0": "pelvis",
+      "argus3": "femur_r",
+      "l_knee": "femur_l",
+      "argus2": "tibia_r",
+      "l_foot": "calcn_l",
+      "argus4": "femur_l",
+      "r_knee": "femur_r",
+      "argus1": "tibia_l",
+      "r_foot": "calcn_r"
+    },
+    "cluster_groups": {},
+    "root_cluster": "argus0",
+    "unlock": [
+      "pelvis_tx", "pelvis_ty", "pelvis_tz",
+      "pelvis_tilt", "pelvis_list", "pelvis_rotation",
+      "hip_flexion_r", "hip_adduction_r", "hip_rotation_r", "knee_angle_r", "ankle_angle_r",
+      "hip_flexion_l", "hip_adduction_l", "hip_rotation_l", "knee_angle_l", "ankle_angle_l"
+    ],
+    "lock": [
+      "arm_flex_r", "arm_add_r", "arm_rot_r", "elbow_flex_r", "pro_sup_r", "wrist_flex_r", "wrist_dev_r",
+      "arm_flex_l", "arm_add_l", "arm_rot_l", "elbow_flex_l", "pro_sup_l", "wrist_flex_l", "wrist_dev_l",
+      "subtalar_angle_r", "mtp_angle_r", "subtalar_angle_l", "mtp_angle_l",
+      "lumbar_extension", "lumbar_bending", "lumbar_rotation"
+    ],
+    "lock_others": true,
+    "cluster_unlocks": {},
+    "static_pose_deg": {},
+    "neutral_tasks": [
+      ["knee_angle_r", "manual_value", 0.0, 50.0],
+      ["knee_angle_l", "manual_value", 0.0, 50.0],
+      ["ankle_angle_r", "manual_value", 0.0, 10.0],
+      ["ankle_angle_l", "manual_value", 0.0, 10.0]
+    ],
+    "_neutral_tasks": "Hips stay free so SCoRE hip centers can be reached. Knees (and ankles) stay locked at 0 in the static pose; a free knee flexed ~40 deg to the skin-side SCoRE point and carried the ankle away from the foot plate.",
+    "joint_centers": [
+      {"name": "RHJC", "parent": "argus0", "child": "argus3", "body": "femur_r", "location": "origin"},
+      {"name": "RKJC", "parent": "argus3", "child": "argus2", "body": "tibia_r", "location": "origin", "hinge_reference": "RHJC"},
+      {"name": "LHJC", "parent": "argus0", "child": "argus4", "body": "femur_l", "location": "origin"},
+      {"name": "LKJC", "parent": "argus4", "child": "argus1", "body": "tibia_l", "location": "origin", "hinge_reference": "LHJC"}
+    ],
+    "scale": [
+      {"name": "leg_r", "markers": ["RHJC", "RKJC"], "bodies": ["femur_r", "tibia_r", "patella_r", "talus_r", "calcn_r", "toes_r"]},
+      {"name": "leg_l", "markers": ["LHJC", "LKJC"], "bodies": ["femur_l", "tibia_l", "patella_l", "talus_l", "calcn_l", "toes_l"]},
+      {"name": "hip_width", "markers": ["RHJC", "LHJC"], "bodies": ["pelvis", "torso"]}
+    ],
+    "lengths_report": [["R hip to knee", "RHJC", "RKJC"], ["L hip to knee", "LHJC", "LKJC"], ["hip width", "RHJC", "LHJC"]],
+    "scale_report": ["pelvis", "femur_r", "femur_l"],
+    "_marker_weights": "argus0 is up-weighted so the trunk follows the waist plate; feet are down-weighted so they do not yank the ankles or pelvis. Qualisys pelvis_* and back are not IK markers.",
+    "marker_weights": {
+      "argus0": 40.0,
+      "r_foot": 0.1,
+      "l_foot": 0.1
+    },
+    "priors": {"coordinates": [], "deg": 0.0, "weight": 0.0, "gate_markers": 3},
+    "lost_rms_m": 0.0,
+    "presence_groups": {
+      "argus3": "(hip_flexion|hip_adduction|hip_rotation|knee_angle|ankle_angle)_r$",
+      "argus2": "(knee_angle|ankle_angle)_r$",
+      "r_foot": "ankle_angle_r$",
+      "argus4": "(hip_flexion|hip_adduction|hip_rotation|knee_angle|ankle_angle)_l$",
+      "argus1": "(knee_angle|ankle_angle)_l$",
+      "l_foot": "ankle_angle_l$"
+    }
+  },
+  "analysis": {
+    "bones": ["pelvis", "femur_r", "tibia_r", "femur_l", "tibia_l"],
+    "joints": [
+      ["hip_flexion", "hip flexion"],
+      ["hip_adduction", "hip adduction"],
+      ["hip_rotation", "hip rotation"],
+      ["knee_angle", "knee angle"]
+    ],
+    "masks": {},
+    "align_joints": ["hip_flexion_r", "hip_flexion_l", "knee_angle_r", "knee_angle_l"],
+    "caption": [["hip_flexion_r", "R hip"], ["knee_angle_r", "R knee"], ["hip_flexion_l", "L hip"], ["knee_angle_l", "L knee"]],
+    "table_groups": [
+      ["trunk", "Pelvis\\\\Orientation", null],
+      ["hip_flexion", "Hip\\\\Flexion", "hip_flexion"],
+      ["hip_adduction", "Hip\\\\Adduction", "hip_adduction"],
+      ["hip_rotation", "Hip\\\\Rotation", "hip_rotation"],
+      ["knee", "Knee\\\\Flexion", "knee_angle"]
+    ],
+    "activity_features": ["hip_flexion_r", "hip_flexion_l", "hip_adduction_r", "hip_adduction_l",
+                          "hip_rotation_r", "hip_rotation_l", "knee_angle_r", "knee_angle_l"],
+    "activity_plot_joints": [["hip_flexion", "hip flexion"], ["hip_adduction", "hip adduction"], ["hip_rotation", "hip rotation"], ["knee_angle", "knee angle"]],
+    "activity_plane_features": {},
+    "skeleton": {
+      "focus_link": "Pelvis",
+      "hide_legs": false,
+      "visible_links": ["Pelvis", "RightUpperLeg", "RightLowerLeg", "LeftUpperLeg", "LeftLowerLeg"],
+      "segment_end": {
+        "RightUpperLeg": "RightLowerLeg_f1",
+        "RightLowerLeg": "RightFoot_f1",
+        "LeftUpperLeg": "LeftLowerLeg_f1",
+        "LeftLowerLeg": "LeftFoot_f1"
+      },
+      "links": {
+        "pelvis": ["Pelvis", [[1, 0, 0], [0, 0, -1], [0, 1, 0]]],
+        "femur_r": ["RightUpperLeg", [[1, 0, 0], [0, 0, -1], [0, 1, 0]]],
+        "tibia_r": ["RightLowerLeg", [[1, 0, 0], [0, 0, -1], [0, 1, 0]]],
+        "femur_l": ["LeftUpperLeg", [[1, 0, 0], [0, 0, -1], [0, 1, 0]]],
+        "tibia_l": ["LeftLowerLeg", [[1, 0, 0], [0, 0, -1], [0, 1, 0]]]
+      }
+    }
+  }
+}

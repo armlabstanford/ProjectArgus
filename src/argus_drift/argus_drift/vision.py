@@ -156,17 +156,18 @@ def rotation_ransac(ba, bb, threshold, iterations=300, rng=None):
     return fit, best
 
 
-def relative_rotation(fa, fb, camera_a, camera_b, px_threshold=2.0, ratio=0.8):
+def relative_rotation(fa, fb, camera_a, camera_b, px_threshold=2.0, ratio=0.8, min_matches=12):
     """R_a_b from two feature sets, or a Measurement with ok False and the reason."""
     if fa is None or fb is None:
         return Measurement(False, reason="no features")
     pairs = match(fa, fb, ratio)
-    return estimate(fa.bearings, fb.bearings, pairs, np.sqrt(camera_a.focal * camera_b.focal), px_threshold)
+    return estimate(fa.bearings, fb.bearings, pairs, np.sqrt(camera_a.focal * camera_b.focal),
+                    px_threshold, min_matches=min_matches)
 
 
-def estimate(bearings_a, bearings_b, pairs, focal, px_threshold=2.0):
+def estimate(bearings_a, bearings_b, pairs, focal, px_threshold=2.0, min_matches=12):
     """R_a_b from matched bearings (pairs: (M, 2) indices), essential matrix or pure rotation."""
-    if len(pairs) < 12:
+    if len(pairs) < min_matches:
         return Measurement(False, matches=len(pairs), reason="too few matches")
     ba, bb = bearings_a[pairs[:, 0]], bearings_b[pairs[:, 1]]
     threshold = px_threshold / focal
@@ -270,7 +271,7 @@ def guided_match(fa, fb, radius_px, ratio=0.8):
 
 
 def guided_rotation(image_a, camera_a, belief_a, image_b, camera_b, belief_b, orb,
-                    px_threshold=2.0, search_deg=20.0, max_axis_deg=120.0):
+                    px_threshold=2.0, search_deg=20.0, max_axis_deg=120.0, min_matches=12):
     """R_a_b, matching both images in a common undistorted view placed by the believed camera
     orientations (belief_*: camera in a common frame). Returns (Measurement, drawing inputs)."""
     axis_a, axis_b = belief_a.apply([0.0, 0.0, 1.0]), belief_b.apply([0.0, 0.0, 1.0])
@@ -288,7 +289,8 @@ def guided_rotation(image_a, camera_a, belief_a, image_b, camera_b, belief_b, or
         features.append(Features(pixels, to_camera.apply(view.bearings(pixels)), descriptors, keypoints))
     fa, fb = features
     pairs = guided_match(fa, fb, view.focal * np.tan(np.radians(search_deg)))
-    return estimate(fa.bearings, fb.bearings, pairs, view.focal, px_threshold), (va, vb, fa, fb)
+    return estimate(fa.bearings, fb.bearings, pairs, view.focal, px_threshold,
+                    min_matches=min_matches), (va, vb, fa, fb)
 
 
 def draw(image_a, image_b, fa, fb, measurement, title=""):
